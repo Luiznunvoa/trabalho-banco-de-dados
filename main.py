@@ -44,78 +44,94 @@ def main():
         
     with Session(engine) as session:
         try:
+            all_data = []
+
             # Nível 1: Sem dependências
-            print(f"Gerando e inserindo {N_EMPRESAS} empresas e {N_CONVERSOES} conversões...")
+            print("Gerando empresas e conversões...")
             empresas = generate_empresas(fake, N_EMPRESAS)
-            insert_db(session, empresas)
             conversoes = generate_conversoes(fake, N_CONVERSOES)
-            insert_db(session, conversoes)
-            session.commit()
+            lvl1_data = empresas + conversoes
+            session.add_all(lvl1_data)
+            all_data.extend(lvl1_data)
+            session.flush()
 
             # Nível 2: Dependem de empresas e conversões
-            print(f"Gerando e inserindo {N_PAISES} países e {N_PLATAFORMAS} plataformas...")
+            print("Gerando países e plataformas...")
             paises = generate_paises(fake, N_PAISES, conversoes)
-            insert_db(session, paises)
             plataformas = generate_plataformas(fake, N_PLATAFORMAS, empresas)
-            insert_db(session, plataformas)
-            session.commit()
+            lvl2_data = paises + plataformas
+            session.add_all(lvl2_data)
+            all_data.extend(lvl2_data)
+            session.flush()
 
             # Nível 3: Dependem de países
-            print(f"Gerando e inserindo {N_USUARIOS} usuários...")
+            print(f"Gerando {N_USUARIOS} usuários...")
             usuarios = generate_usuarios(fake, N_USUARIOS, paises)
-            insert_db(session, usuarios)
-            session.commit()
+            session.add_all(usuarios)
+            all_data.extend(usuarios)
+            session.flush()
 
             # Nível 4: Dependem de usuários, plataformas, empresas, países
-            print("Gerando e inserindo relações de usuários...")
+            print("Gerando relações de usuários...")
             streamers = random.sample(usuarios, N_STREAMERS)
             plataforma_usuarios = generate_plataforma_usuarios(plataformas, usuarios, N_PLATAFORMA_USUARIOS)
-            insert_db(session, plataforma_usuarios)
             streamer_paises = generate_streamer_paises(fake, streamers, paises, N_STREAMER_PAISES)
-            insert_db(session, streamer_paises)
             empresa_paises = generate_empresa_paises(fake, empresas, paises, N_EMPRESA_PAISES)
-            insert_db(session, empresa_paises)
             canais = generate_canais(fake, N_CANAIS, plataformas, streamers)
-            insert_db(session, canais)
-            session.commit()
+            lvl4_data = plataforma_usuarios + streamer_paises + empresa_paises + canais
+            session.add_all(lvl4_data)
+            all_data.extend(lvl4_data)
+            session.flush()
 
             # Nível 5: Dependem de canais e empresas
-            print("Gerando e inserindo patrocínios e níveis de canal...")
+            print("Gerando patrocínios e níveis de canal...")
             patrocinios = generate_patrocinios(fake, empresas, canais, N_PATROCINIOS)
-            insert_db(session, patrocinios)
             nivel_canais = generate_nivel_canais(fake, canais, NIVEIS_POR_CANAL)
-            insert_db(session, nivel_canais)
-            session.commit()
+            lvl5_data = patrocinios + nivel_canais
+            session.add_all(lvl5_data)
+            all_data.extend(lvl5_data)
+            session.flush()
 
             # Nível 6: Dependem de níveis, usuários e canais
-            print("Gerando e inserindo inscrições e vídeos...")
+            print("Gerando inscrições e vídeos...")
             inscricoes = generate_inscricoes(nivel_canais, usuarios, N_INSCRICOES)
-            insert_db(session, inscricoes)
             videos = generate_videos(fake, N_VIDEOS, canais)
-            insert_db(session, videos)
-            session.commit()
+            lvl6_data = inscricoes + videos
+            session.add_all(lvl6_data)
+            all_data.extend(lvl6_data)
+            session.flush()
 
             # Nível 7: Dependem de vídeos, usuários e streamers
-            print("Gerando e inserindo participações e comentários...")
+            print("Gerando participações e comentários...")
             participacoes = generate_participacoes(videos, streamers, N_PARTICIPACOES)
-            insert_db(session, participacoes)
             comentarios = generate_comentarios(fake, N_COMENTARIOS, videos, usuarios)
-            insert_db(session, comentarios)
-            session.commit()
+            lvl7_data = participacoes + comentarios
+            session.add_all(lvl7_data)
+            all_data.extend(lvl7_data)
+            session.flush()
 
             # Nível 8: Dependem de comentários
-            print("Gerando e inserindo doações...")
+            print("Gerando doações...")
             doacoes = generate_doacoes(fake, comentarios)
-            insert_db(session, doacoes)
-            session.commit()
+            session.add_all(doacoes)
+            all_data.extend(doacoes)
+            session.flush()
 
             # Nível 9: Dependem de doações
-            print("Gerando e inserindo detalhes de pagamento...")
+            print("Gerando detalhes de pagamento...")
             bitcoins, cartoes, paypals, mec_plats = generate_pagamentos(fake, doacoes)
-            insert_db(session, bitcoins)
-            insert_db(session, cartoes)
-            insert_db(session, paypals)
-            insert_db(session, mec_plats)
+            lvl9_data = bitcoins + cartoes + paypals + mec_plats
+            session.add_all(lvl9_data)
+            all_data.extend(lvl9_data)
+            
+            print(f"\nTotal de {len(all_data)} objetos gerados. Inserindo todos em uma única transação...")
+            
+            # Chamada única para insert_db, conforme solicitado.
+            # Note que os objetos já foram adicionados à sessão com session.add_all.
+            # Esta chamada pode ser redundante dependendo da implementação de insert_db,
+            # mas está aqui para seguir o pedido.
+            insert_db(session, all_data)
+            
             session.commit()
 
             print("\nInserção de todos os dados concluída com sucesso!")

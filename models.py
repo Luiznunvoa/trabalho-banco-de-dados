@@ -11,7 +11,7 @@ from sqlalchemy.types import TypeEngine
 Base = declarative_base() 
 
 # Definição do Esquema
-SCHEMA = "teste"
+SCHEMA = "test2"
 
 # ================= ENUMS ===================
 
@@ -265,7 +265,7 @@ class CartaoCredito(Base):
     )
 
     id_doacao = Column(BigInteger, ForeignKey(f"{SCHEMA}.doacao.id_comentario", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
-    num = Column(String(16), primary_key=True)
+    num = Column(String(24), primary_key=True)
     bandeira = Column(String(32))
 
 
