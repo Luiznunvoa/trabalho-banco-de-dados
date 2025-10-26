@@ -13,7 +13,7 @@ def generate_empresas(fake: Faker, count: int) -> list[Empresa]:
     for _ in range(count):
         empresas.append(
             Empresa(
-                nome=fake.unique.company(), 
+                nome=fake.company(), 
                 nome_fantasia=fake.company_suffix()
             )
         )
@@ -25,7 +25,7 @@ def generate_conversoes(fake: Faker, count: int) -> list[Conversao]:
     for _ in range(count):
         conversoes.append(
             Conversao(
-                moeda=fake.unique.currency_code(),
+                moeda=fake.currency_code(),
                 fator_conver=fake.pydecimal(left_digits=2, right_digits=8, positive=True)
             )
         )
@@ -56,7 +56,7 @@ def generate_plataformas(fake: Faker, count: int, empresas: list[Empresa]) -> li
     for _ in range(count):
         plataformas.append(
             Plataforma(
-                nome=fake.unique.company(),
+                nome=fake.company(),
                 data_fund=fake.date_object(),
                 empresa_fund=random.choice(empresas).nro,
                 empresa_respo=random.choice(empresas).nro
@@ -67,11 +67,17 @@ def generate_plataformas(fake: Faker, count: int, empresas: list[Empresa]) -> li
 def generate_usuarios(fake: Faker, count: int, paises: list[Pais]) -> list[Usuario]:
     """Gera uma lista de usuários fictícios."""
     usuarios: list[Usuario] = []
-    for _ in range(count):
+    for i in range(count):
+        # Manually ensure uniqueness for nick and email to support large quantities,
+        # as fake.unique can exhaust its pool of values.
+        user_name_base = fake.user_name()
+        unique_nick = f"{user_name_base}{i}"
+        unique_email = f"{user_name_base.replace(' ', '_')}{i}@{fake.free_email_domain()}"
+
         usuarios.append(
             Usuario(
-                nick=fake.unique.user_name(),
-                email=fake.unique.email(),
+                nick=unique_nick,
+                email=unique_email,
                 data_nasc=fake.date_of_birth(minimum_age=13, maximum_age=80),
                 telefone=fake.phone_number(),
                 pais_residencia=random.choice(paises).ddi if paises else None,
@@ -83,23 +89,41 @@ def generate_usuarios(fake: Faker, count: int, paises: list[Pais]) -> list[Usuar
 def generate_plataforma_usuarios(plataformas: list[Plataforma], usuarios: list[Usuario], count: int) -> list[PlataformaUsuario]:
     """Gera relações fictícias entre plataformas e usuários."""
     plataforma_usuarios: list[PlataformaUsuario] = []
-    pairs = set()
-    max_possible_pairs = len(plataformas) * len(usuarios)
-    if count > max_possible_pairs:
-        count = max_possible_pairs
+    
+    # Tracks the PK (platform_nro, user_id) to ensure we don't add the same user to the same platform twice.
+    pk_pairs = set()
+    
+    # Tracks the UK (platform_nro, platform_user_number) to satisfy the unique constraint.
+    uk_per_platform = {p.nro: set() for p in plataformas}
+
+    max_possible_pk_pairs = len(plataformas) * len(usuarios)
+    if count > max_possible_pk_pairs:
+        count = max_possible_pk_pairs
         
     while len(plataforma_usuarios) < count:
         plataforma = random.choice(plataformas)
         usuario = random.choice(usuarios)
-        if (plataforma.nro, usuario.id) not in pairs:
-            pairs.add((plataforma.nro, usuario.id))
-            plataforma_usuarios.append(
-                PlataformaUsuario(
-                    nro_plataforma=plataforma.nro,
-                    id_usuario=usuario.id,
-                    nro_usuario=random.randint(10000000, 99999999)
-                )
+
+        # Check if this user is already on this platform (PK violation)
+        if (plataforma.nro, usuario.id) in pk_pairs:
+            continue
+
+        # Generate a platform-specific user number that is unique for this platform (UK violation)
+        platform_user_num = random.randint(10000000, 99999999)
+        while platform_user_num in uk_per_platform[plataforma.nro]:
+            platform_user_num = random.randint(10000000, 99999999)
+        
+        # Add the new keys to the tracking sets
+        pk_pairs.add((plataforma.nro, usuario.id))
+        uk_per_platform[plataforma.nro].add(platform_user_num)
+
+        plataforma_usuarios.append(
+            PlataformaUsuario(
+                nro_plataforma=plataforma.nro,
+                id_usuario=usuario.id,
+                nro_usuario=platform_user_num
             )
+        )
     return plataforma_usuarios
 
 def generate_streamer_paises(fake: Faker, streamers: list[Usuario], paises: list[Pais], count: int) -> list[StreamerPais]:
@@ -146,16 +170,18 @@ def generate_empresa_paises(fake: Faker, empresas: list[Empresa], paises: list[P
             )
     return empresa_paises
 
-def generate_canais(fake: Faker, count: int, plataformas: list[Plataforma], streamers: list[Usuario]) -> list[Canal]:
-    """Gera uma lista de canais fictícios."""
+def generate_canais(fake: Faker, plataformas: list[Plataforma], streamers: list[Usuario]) -> list[Canal]:
+    """Gera um canal para cada streamer, garantindo nomes de canal únicos por plataforma."""
     canais: list[Canal] = []
-    for _ in range(count):
-        streamer = random.choice(streamers) if streamers else None
+    for streamer in streamers:
+        # Create a unique channel name from the streamer's unique nick
+        channel_name = f"{streamer.nick}_canal"
+
         canais.append(
             Canal(
                 nro_plataforma=random.choice(plataformas).nro,
-                nick_streamer=streamer.nick if streamer else None,
-                nome=fake.unique.word(),
+                nick_streamer=streamer.nick,
+                nome=channel_name,
                 tipo=random.choice(list(TipoCanal)),
                 data=fake.date_object(),
                 descricao=fake.sentence(),

@@ -1,6 +1,7 @@
 from sqlalchemy import (
     create_engine, Column, Integer, String, Numeric, Date, Time, 
-    Boolean, Text, ForeignKey, BigInteger, Enum, DECIMAL, TIMESTAMP, UniqueConstraint
+    Boolean, Text, ForeignKey, BigInteger, Enum, DECIMAL, TIMESTAMP, UniqueConstraint,
+    text
 )
 from sqlalchemy.orm import declarative_base, relationship
 import enum
@@ -11,7 +12,7 @@ from sqlalchemy.types import TypeEngine
 Base = declarative_base() 
 
 # Definição do Esquema
-SCHEMA = "test2"
+SCHEMA = "luiz"
 
 # ================= ENUMS ===================
 
@@ -31,24 +32,16 @@ class StatusPagamento(enum.Enum):
 
 def drop_all_and_enums(engine):
     """
-    Droppa todas as tabelas e, em seguida, droppa explicitamente os tipos ENUM 
-    com CASCADE para evitar o erro "DependentObjectsStillExist" do PostgreSQL.
+    Droppa todo o schema especificado com CASCADE para garantir que todos os objetos,
+    incluindo tabelas e tipos ENUM, sejam removidos. Em seguida, recria o schema.
+    Esta é uma abordagem mais robusta para garantir um ambiente limpo.
     """
     conn = engine.connect()
     with conn.begin():
-        # 1. Tenta dropar todas as tabelas 
-        Base.metadata.drop_all(engine)
-
-        # 2. Droppa explicitamente os tipos ENUM com CASCADE para forçar a remoção, 
-        # mesmo que as tabelas não tenham sido removidas por completo no passo 1.
-        
-        enum_types = [TipoCanal, StatusPagamento]
-        for enum_cls in enum_types:
-            enum_name = enum_cls.__name__.lower()
-            # Adição do CASCADE
-            sql_drop_type = f"DROP TYPE IF EXISTS {SCHEMA}.{enum_name} CASCADE"
-            print(f"-> Tentando dropar tipo ENUM com CASCADE: {sql_drop_type}")
-            conn.execute(sql_drop_type)
+        print(f"-> Droppando schema '{SCHEMA}' com CASCADE...")
+        conn.execute(text(f'DROP SCHEMA IF EXISTS "{SCHEMA}" CASCADE'))
+        print(f"-> Criando schema '{SCHEMA}'...")
+        conn.execute(text(f'CREATE SCHEMA "{SCHEMA}"'))
 
 
 # ================= TABELAS =================
