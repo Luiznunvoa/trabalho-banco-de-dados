@@ -40,7 +40,7 @@ def generate_paises(fake: Faker, count: int, conversoes: list[Conversao]) -> lis
     for _ in range(count):
         paises.append(
             Pais(
-                ddi=int(fake.unique.country_calling_code().replace('+', '')),
+                ddi=int(fake.unique.country_calling_code().replace('+', '').replace(' ', '')),
                 nome=fake.country(),
                 id_moeda=random.choice(conversoes).id
             )

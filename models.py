@@ -11,7 +11,7 @@ from sqlalchemy.types import TypeEngine
 Base = declarative_base() 
 
 # Definição do Esquema
-SCHEMA = "teste_parrini"
+SCHEMA = "teste"
 
 # ================= ENUMS ===================
 
@@ -155,7 +155,7 @@ class Canal(Base):
     
     nome = Column(String(255), nullable=False)
     # Uso do ENUM que causava o problema de dependência
-    tipo = Column(Enum(TipoCanal), nullable=False)
+    tipo = Column(Enum(TipoCanal, name='tipo_canal'), nullable=False)
     data = Column(Date, nullable=False)
     descricao = Column(String(255))
     qtd_visualizacoes = Column(Integer, nullable=False)
@@ -245,7 +245,7 @@ class Doacao(Base):
     id_comentario = Column(BigInteger, ForeignKey(f"{SCHEMA}.comentario.num_seq", ondelete="CASCADE"), primary_key=True)
     valor = Column(DECIMAL(10, 2), nullable=False)
     # Uso do ENUM que causava o problema de dependência
-    status_pagamento = Column(Enum(StatusPagamento), nullable=False, default=StatusPagamento.PENDENTE)
+    status_pagamento = Column(Enum(StatusPagamento, name='status_pagamento'), nullable=False, default=StatusPagamento.PENDENTE)
 
 
 class Bitcoin(Base):
