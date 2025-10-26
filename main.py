@@ -2,7 +2,7 @@ from db import conn_db, select_db, insert_db
 from faker import Faker
 from models import Empresa, Base 
 from sqlalchemy.orm import Session 
-import aux_func
+from aux_func import generate_empresas
 
 def main():
     engine = conn_db()
@@ -19,9 +19,8 @@ def main():
     print("⏳ Inserindo 10.000 registros na tabela 'empresa' (Bulk Insert)...")
     
     with Session(engine) as session:
-        aux_func.insert_empresa(fake=fake, session=session)
-        
-            
+        insert_db(session, generate_empresas(fake=fake, count=10000))
+
     print("Inserção concluída!")
     
     df = select_db(schema = "teste_parrini", tabela = "empresa", engine = engine)
