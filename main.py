@@ -10,7 +10,9 @@ def main():
     
     try:
         print("Criando tabelas no banco de dados...")
+
         Base.metadata.create_all(engine)
+
         print("Tabelas verificadas/criadas com sucesso.")
     except Exception as e:
         print(f"Erro ao criar tabelas: {e}")
@@ -19,7 +21,7 @@ def main():
     print("⏳ Inserindo 10.000 registros na tabela 'empresa' (Bulk Insert)...")
     
     with Session(engine) as session:
-        insert_db(session, generate_empresas(fake=fake, count=10000))
+        insert_db(session, generate_empresas(fake, 10000))
 
     print("Inserção concluída!")
     

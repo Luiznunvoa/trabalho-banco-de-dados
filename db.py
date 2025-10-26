@@ -4,14 +4,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Sequence
 
-def conn_db():
+
+def conn_db() -> Engine:
     try:
         return create_engine(url ='postgresql+psycopg2://admin:2444@72.60.156.198/banco')
     except Exception as e:
         raise Exception ("Erro ao se conectar com o banco")
 
 
-def select_db(schema : str, tabela : str, engine : Engine):
+def select_db(schema : str, tabela : str, engine : Engine) -> pd.DataFrame:
     try:
         sql_query = f"SELECT * FROM {schema}.{tabela}" 
         df = pd.read_sql(sql_query, con=engine)
@@ -20,7 +21,7 @@ def select_db(schema : str, tabela : str, engine : Engine):
         raise Exception ("Erro para fazer a query")
 
 
-def insert_db(session: Session, objs: Sequence[object]):
+def insert_db(session: Session, objs: Sequence[object]) -> None:
     try:
         objs = list(objs)
 
