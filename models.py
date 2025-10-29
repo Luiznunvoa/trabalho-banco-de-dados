@@ -12,7 +12,7 @@ from sqlalchemy.types import TypeEngine
 Base = declarative_base() 
 
 # Definição do Esquema
-SCHEMA = "bd2"
+SCHEMA = "teste4"
 
 # ================= ENUMS ===================
 

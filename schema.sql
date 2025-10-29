@@ -1,8 +1,8 @@
 -- Exclui e recria o esquema para garantir um ambiente limpo
-DROP SCHEMA IF EXISTS bd2 CASCADE;
-CREATE SCHEMA bd2;
+DROP SCHEMA IF EXISTS teste4 CASCADE;
+CREATE SCHEMA teste4;
 
-SET SEARCH_PATH TO bd2;
+SET SEARCH_PATH TO teste4;
 
 -- Corrigido: ENUM precisa de aspas simples válidas e consistentes
 CREATE TYPE TIPO_CANAL AS ENUM ('privado', 'publico', 'misto');

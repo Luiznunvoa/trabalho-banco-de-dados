@@ -11,40 +11,69 @@ from aux_func import (
     generate_participacoes, generate_comentarios, generate_doacoes, generate_pagamentos
 )
 
+
+def suggest(base_value, variation_percent=10):
+    """
+    Retorna um valor que varia em torno de um valor base.
+    Para inteiros, retorna um inteiro. Para floats, retorna um float.
+    A variação é de +/- variation_percent.
+    """
+    if base_value == 0:
+        return 0
+        
+    variation = base_value * (variation_percent / 100.0)
+    min_val = base_value - variation
+    max_val = base_value + variation
+    
+    if isinstance(base_value, int):
+        # Garante que o mínimo seja pelo menos 1 se o valor base for positivo.
+        min_val = max(1, int(min_val))
+        max_val = int(max_val)
+        if min_val > max_val: # Pode acontecer se base_value for pequeno
+            return min_val
+        return random.randint(min_val, max_val)
+    else: # float
+        return random.uniform(min_val, max_val)
+
 # --- CONTROLE DE QUANTIDADE DE DADOS (Configuração para alta volumetria) ---
+# As constantes a seguir são tratadas como "sugestões" e uma variação aleatória
+# é aplicada para tornar a geração de dados menos determinística.
 
-# --- Entidades Principais ---
-N_USUARIOS = 100_000
-N_EMPRESAS = 1_000
-N_PLATAFORMAS = 10
-N_PAISES = 192  # Número realista de países
+# --- Entidades Principais (Sugestões) ---
+SUGGEST_N_USUARIOS = 100_000
+SUGGEST_N_EMPRESAS = 1_000
+SUGGEST_N_PLATAFORMAS = 10
+N_PAISES = 192  # Número realista de países, mantido fixo.
 
-# --- Proporções e Entidades Derivadas ---
-# A geração de dados massivos deve ser proporcional para manter a integridade e o realismo.
+# --- Proporções e Entidades Derivadas (Sugestões) ---
+SUGGEST_PCT_STREAMERS = 0.10
+SUGGEST_VIDEOS_POR_CANAL = 2
+SUGGEST_COMENTARIOS_POR_VIDEO = 5
+SUGGEST_PLATAFORMAS_POR_USUARIO = 1.5
+SUGGEST_INSCRICOES_POR_USUARIO = 1.25
+SUGGEST_PARTICIPACOES_POR_VIDEO = 2
+SUGGEST_NIVEIS_POR_CANAL = 3
+SUGGEST_PATROCINIOS_POR_EMPRESA = 2
 
-# Proporções de Usuários
-PCT_STREAMERS = 0.10  # 10% dos usuários são streamers
+# --- Geração dos Valores Variáveis ---
+N_USUARIOS = suggest(SUGGEST_N_USUARIOS)
+N_EMPRESAS = suggest(SUGGEST_N_EMPRESAS)
+N_PLATAFORMAS = suggest(SUGGEST_N_PLATAFORMAS)
+
+PCT_STREAMERS = suggest(SUGGEST_PCT_STREAMERS)
 N_STREAMERS = int(N_USUARIOS * PCT_STREAMERS)
 
-# Proporções de Conteúdo
 N_CANAIS = N_STREAMERS  # Assumimos 1 canal por streamer
-VIDEOS_POR_CANAL = 2
-N_VIDEOS = N_CANAIS * VIDEOS_POR_CANAL
-COMENTARIOS_POR_VIDEO = 5
-N_COMENTARIOS = N_VIDEOS * COMENTARIOS_POR_VIDEO
+N_VIDEOS = N_CANAIS * suggest(SUGGEST_VIDEOS_POR_CANAL)
+N_COMENTARIOS = N_VIDEOS * suggest(SUGGEST_COMENTARIOS_POR_VIDEO)
 
-# Proporções de Relações (Tabelas de Junção)
-PLATAFORMAS_POR_USUARIO = 1.5
-N_PLATAFORMA_USUARIOS = int(N_USUARIOS * PLATAFORMAS_POR_USUARIO)
-INSCRICOES_POR_USUARIO = 1.25
-N_INSCRICOES = int(N_USUARIOS * INSCRICOES_POR_USUARIO)
-PARTICIPACOES_POR_VIDEO = 2
-N_PARTICIPACOES = N_VIDEOS * PARTICIPACOES_POR_VIDEO
+N_PLATAFORMA_USUARIOS = int(N_USUARIOS * suggest(SUGGEST_PLATAFORMAS_POR_USUARIO))
+N_INSCRICOES = int(N_USUARIOS * suggest(SUGGEST_INSCRICOES_POR_USUARIO))
+N_PARTICIPACOES = N_VIDEOS * suggest(SUGGEST_PARTICIPACOES_POR_VIDEO)
 
-# Proporções de Outras Entidades
 N_CONVERSOES = N_PAISES  # Simplificação: 1 tipo de moeda por país
-NIVEIS_POR_CANAL = 3
-N_PATROCINIOS = N_EMPRESAS * 2 # Cada empresa patrocina em média 2 canais
+NIVEIS_POR_CANAL = suggest(SUGGEST_NIVEIS_POR_CANAL)
+N_PATROCINIOS = N_EMPRESAS * suggest(SUGGEST_PATROCINIOS_POR_EMPRESA)
 N_STREAMER_PAISES = N_STREAMERS  # 1 nacionalidade por streamer
 N_EMPRESA_PAISES = N_EMPRESAS    # 1 país de registro por empresa
 
