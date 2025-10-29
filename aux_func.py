@@ -32,19 +32,27 @@ def generate_conversoes(fake: Faker, count: int) -> list[Conversao]:
     return conversoes
 
 def generate_paises(fake: Faker, count: int, conversoes: list[Conversao]) -> list[Pais]:
-    """Gera uma lista de países fictícios, associando a uma moeda."""
+    """Gera uma lista de países fictícios, garantindo DDIs únicos."""
     paises: list[Pais] = []
+    ddis_gerados = set()
     if not conversoes:
         raise ValueError("A lista de conversões não pode estar vazia para gerar países.")
-    
-    for _ in range(count):
-        paises.append(
-            Pais(
-                ddi=int(fake.unique.country_calling_code().replace('+', '').replace(' ', '')),
-                nome=fake.country(),
-                id_moeda=random.choice(conversoes).id
-            )
-        )
+
+    while len(paises) < count:
+        try:
+            ddi = int(fake.country_calling_code().replace('+', '').replace(' ', ''))
+            if ddi not in ddis_gerados:
+                ddis_gerados.add(ddi)
+                paises.append(
+                    Pais(
+                        ddi=ddi,
+                        nome=fake.country(),
+                        id_moeda=random.choice(conversoes).id
+                    )
+                )
+        except ValueError:
+            # Ignora códigos que não podem ser convertidos para int, se houver algum.
+            continue
     return paises
 
 def generate_plataformas(fake: Faker, count: int, empresas: list[Empresa]) -> list[Plataforma]:
@@ -180,7 +188,7 @@ def generate_canais(fake: Faker, plataformas: list[Plataforma], streamers: list[
         canais.append(
             Canal(
                 nro_plataforma=random.choice(plataformas).nro,
-                nick_streamer=streamer.nick,
+                id_streamer=streamer.id,
                 nome=channel_name,
                 tipo=random.choice(list(TipoCanal)),
                 data=fake.date_object(),
@@ -334,14 +342,19 @@ def generate_pagamentos(fake: Faker, doacoes: list[Doacao]) -> tuple[list[Bitcoi
 
     used_card_nums = set()
     for doacao in doacoes_shuffled[split1:split2]:
-        card_num = fake.credit_card_number()
-        while card_num in used_card_nums:
-            card_num = fake.credit_card_number()
-        used_card_nums.add(card_num)
+        card_num_raw = fake.credit_card_number()
+        # Limpa não-dígitos e trunca para 16 caracteres para caber no esquema quebrado
+        card_num_clean = "".join(filter(str.isdigit, card_num_raw))[:16]
+
+        while card_num_clean in used_card_nums:
+            card_num_raw = fake.credit_card_number()
+            card_num_clean = "".join(filter(str.isdigit, card_num_raw))[:16]
+
+        used_card_nums.add(card_num_clean)
         cartoes.append(
             CartaoCredito(
                 id_doacao=doacao.id_comentario,
-                num=card_num,
+                num=card_num_clean,
                 bandeira=fake.credit_card_provider()
             )
         )

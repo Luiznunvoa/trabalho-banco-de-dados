@@ -12,7 +12,7 @@ from sqlalchemy.types import TypeEngine
 Base = declarative_base() 
 
 # Definição do Esquema
-SCHEMA = "luiz"
+SCHEMA = "bd2"
 
 # ================= ENUMS ===================
 
@@ -143,12 +143,11 @@ class Canal(Base):
     )
 
     nro_plataforma = Column(Integer, ForeignKey(f"{SCHEMA}.plataforma.nro", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
-    # OBSERVAÇÃO: A FK aqui é para Usuario.nick, o que requer que nick seja INDEXADO (UNIQUE já resolve)
-    nick_streamer = Column(String(255), ForeignKey(f"{SCHEMA}.usuario.nick", onupdate="CASCADE", ondelete="CASCADE"))
+    id_streamer = Column(Integer, ForeignKey(f"{SCHEMA}.usuario.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     
     nome = Column(String(255), nullable=False)
     # Uso do ENUM que causava o problema de dependência
-    tipo = Column(Enum(TipoCanal, name='tipo_canal'), nullable=False)
+    tipo = Column(Enum(TipoCanal, name='tipo_canal', schema=SCHEMA, create_type=False), nullable=False)
     data = Column(Date, nullable=False)
     descricao = Column(String(255))
     qtd_visualizacoes = Column(Integer, nullable=False)
@@ -194,13 +193,13 @@ class Video(Base):
     __tablename__ = "video"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     __table_args__ = (
-        UniqueConstraint("id_canal", "titulo", "data_h"), 
+        UniqueConstraint("id_canal", "titulo", "datah"), 
         {'schema': SCHEMA}
     )
 
     id_canal = Column(Integer, ForeignKey(f"{SCHEMA}.canal.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     titulo = Column(String(255))
-    data_h = Column(Date) 
+    data_h = Column("datah", Date) 
     tema = Column(String(64))
     duracao = Column(Time)
     visu_simult = Column(Integer)
@@ -226,7 +225,7 @@ class Comentario(Base):
 
     id_usuario = Column(Integer, ForeignKey(f"{SCHEMA}.usuario.id", onupdate="CASCADE", ondelete="SET NULL"))
     texto = Column(Text, nullable=False)
-    data_h = Column(TIMESTAMP, nullable=False)
+    data_h = Column("datah", TIMESTAMP, nullable=False)
     coment_on = Column(Boolean, nullable=False, default=True)
 
 
@@ -238,7 +237,7 @@ class Doacao(Base):
     id_comentario = Column(BigInteger, ForeignKey(f"{SCHEMA}.comentario.num_seq", ondelete="CASCADE"), primary_key=True)
     valor = Column(DECIMAL(10, 2), nullable=False)
     # Uso do ENUM que causava o problema de dependência
-    status_pagamento = Column(Enum(StatusPagamento, name='status_pagamento'), nullable=False, default=StatusPagamento.PENDENTE)
+    status_pagamento = Column(Enum(StatusPagamento, name='status_pagamento', schema=SCHEMA, create_type=False), nullable=False, default=StatusPagamento.PENDENTE)
 
 
 class Bitcoin(Base):

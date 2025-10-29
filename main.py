@@ -1,7 +1,7 @@
 from db import conn_db, insert_db
 from faker import Faker
-from models import Base, drop_all_and_enums
-from sqlalchemy.orm import Session 
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 import random
 from aux_func import (
     generate_empresas, generate_conversoes, generate_paises, generate_plataformas,
@@ -17,7 +17,7 @@ from aux_func import (
 N_USUARIOS = 100_000
 N_EMPRESAS = 1_000
 N_PLATAFORMAS = 10
-N_PAISES = 195  # Número realista de países
+N_PAISES = 192  # Número realista de países
 
 # --- Proporções e Entidades Derivadas ---
 # A geração de dados massivos deve ser proporcional para manter a integridade e o realismo.
@@ -54,9 +54,14 @@ def main():
     fake = Faker('pt_BR') 
     
     try:
-        print("Recriando tabelas no banco de dados...")
-        drop_all_and_enums(engine)
-        Base.metadata.create_all(engine)
+        print("Recriando tabelas no banco de dados a partir de schema.sql...")
+        with open('/home/luiz/Dev/UFF/BD2/trabalho banco de dados/schema.sql', 'r') as f:
+            sql_script = f.read()
+
+        with engine.connect() as connection:
+            with connection.begin():
+                connection.execute(text(sql_script))
+        
         print("Tabelas recriadas com sucesso.")
     except Exception as e:
         print(f"Erro ao recriar tabelas: {e}")
