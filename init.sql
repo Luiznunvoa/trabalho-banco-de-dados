@@ -304,37 +304,39 @@ $$ LANGUAGE sql;
 --8. Listar os k canais que mais faturam considerando as 
 -- três fontes de receita: patrocínio, membros inscritos e doações.
 
-CREATE OR REPLACE FUNCTION MAIORFATURAMENTO(k INT)
-RETURNS TABLE (
-  id INT,
-  nome VARCHAR(255),
-  nro_plataforma INT,
-  total_faturamento FLOAT
-)
-AS $$
-	with c1 as(
-			select c.id, c.nome, c.nro_plataforma, sum(p.valor) as total_valor_patrocinio
-			from canal c join patrocinio p on c.id = p.id_canal
-			group by c.id, c.nome, c.nro_plataforma
-	), c2 as (
-		select c.id, c.nome, c.nro_plataforma, sum(nc.valor) as total_aporte	
-		from Canal c join NivelCanal nc on c.id = nc.id_canal
-			join Inscricao i on nc.id = i.id_nivel
-		group by c.id, c.nome, c.nro_plataforma
-	), c3 as (
-		select c.id, c.nome, c.nro_plataforma, sum(d.valor) as total_doacoes	
-		from Doacao d join Comentario co on d.id_comentario = co.num_seq and d.status_pagamento = 'CONCLUIDO'
-		join Video v on co.id_video = v.id
-		join Canal c on v.id_canal = c.id
-		group by c.id, c.nome, c.nro_plataforma
-	)
-	select c.id, c.nome, c.nro_plataforma, (coalesce(total_valor_patrocinio,0)+coalesce(total_aporte,0)+coalesce(total_doacoes,0)) as total_faturamento
-	from Canal c left join c1 on c.id = c1.id
-		left join c2 on c.id = c2.id
-		left join c3 on c.id = c3.id
-	group by c.id, c.nome, c.nro_plataforma
-	order by total_faturamento desc limit k;
-$$ LANGUAGE sql;
+-- FIX: Essa função
+
+-- CREATE OR REPLACE FUNCTION MAIORFATURAMENTO(k INT)
+-- RETURNS TABLE (
+--   id INT,
+--   nome VARCHAR(255),
+--   nro_plataforma INT,
+--   total_faturamento FLOAT
+-- )
+-- AS $$
+-- 	with c1 as(
+-- 			select c.id, c.nome, c.nro_plataforma, sum(p.valor) as total_valor_patrocinio
+-- 			from canal c join patrocinio p on c.id = p.id_canal
+-- 			group by c.id, c.nome, c.nro_plataforma
+-- 	), c2 as (
+-- 		select c.id, c.nome, c.nro_plataforma, sum(nc.valor) as total_aporte	
+-- 		from Canal c join NivelCanal nc on c.id = nc.id_canal
+-- 			join Inscricao i on nc.id = i.id_nivel
+-- 		group by c.id, c.nome, c.nro_plataforma
+-- 	), c3 as (
+-- 		select c.id, c.nome, c.nro_plataforma, sum(d.valor) as total_doacoes	
+-- 		from Doacao d join Comentario co on d.id_comentario = co.num_seq and d.status_pagamento = 'CONCLUIDO'
+-- 		join Video v on co.id_video = v.id
+-- 		join Canal c on v.id_canal = c.id
+-- 		group by c.id, c.nome, c.nro_plataforma
+-- 	)
+-- 	select c.id, c.nome, c.nro_plataforma, (coalesce(total_valor_patrocinio,0)+coalesce(total_aporte,0)+coalesce(total_doacoes,0)) as total_faturamento
+-- 	from Canal c left join c1 on c.id = c1.id
+-- 		left join c2 on c.id = c2.id
+-- 		left join c3 on c.id = c3.id
+-- 	group by c.id, c.nome, c.nro_plataforma
+-- 	order by total_faturamento desc limit k;
+-- $$ LANGUAGE sql;
 
 -- -- Views -- --- 
 
