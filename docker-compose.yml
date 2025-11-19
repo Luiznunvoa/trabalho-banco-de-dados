@@ -14,7 +14,10 @@ services:
       - "${POSTGRES_PORT}:5432"
 
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./allViews.sql:/docker-entrypoint-initdb.d/02-allViews.sql
+      - ./allFunctions.sql:/docker-entrypoint-initdb.d/03-allFunctions.sql
+      - ./allIndexes.sql:/docker-entrypoint-initdb.d/04-allIndexes.sql
       
       - postgres-data:/var/lib/postgresql/data
 

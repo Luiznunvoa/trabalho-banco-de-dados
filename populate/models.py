@@ -148,7 +148,7 @@ class Canal(Base):
     nome = Column(String(255), nullable=False)
     # Uso do ENUM que causava o problema de dependência
     tipo = Column(Enum(TipoCanal, name='tipo_canal', schema=SCHEMA, create_type=False), nullable=False)
-    data = Column(Date, nullable=False)
+    data_criacao = Column(Date, nullable=False)
     descricao = Column(String(255))
     qtd_visualizacoes = Column(Integer, nullable=False)
 

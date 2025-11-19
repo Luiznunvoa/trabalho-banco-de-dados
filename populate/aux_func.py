@@ -191,7 +191,7 @@ def generate_canais(fake: Faker, plataformas: list[Plataforma], streamers: list[
                 id_streamer=streamer.id,
                 nome=channel_name,
                 tipo=random.choice(list(TipoCanal)),
-                data=fake.date_object(),
+                data_criacao=fake.date_object(),
                 descricao=fake.sentence(),
                 qtd_visualizacoes=random.randint(0, 1000000)
             )
