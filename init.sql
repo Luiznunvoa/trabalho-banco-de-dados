@@ -8,82 +8,96 @@ SET SEARCH_PATH TO core;
 
 CREATE TYPE TIPO_CANAL AS ENUM ('privado', 'publico', 'misto');
 
-CREATE TABLE empresa (
+CREATE TABLE Empresa (
   nro INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nome VARCHAR(255) NOT NULL,
   nome_fantasia VARCHAR(255)
 );
 
-CREATE TABLE conversao (
+CREATE TABLE Conversao (
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   moeda VARCHAR(100) NOT NULL,
   fator_conver NUMERIC(18, 8) NOT NULL
 );
 
-CREATE TABLE pais (
+CREATE TABLE Pais (
   ddi INTEGER NOT NULL PRIMARY KEY,
   nome VARCHAR(100) NOT NULL,
-  id_moeda INTEGER NOT NULL
-  REFERENCES conversao (id)
+  id_moeda INTEGER NOT NULL,
+
+  FOREIGN KEY (id_moeda) REFERENCES Conversao (id)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE plataforma (
+CREATE TABLE Plataforma (
   nro INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nome VARCHAR(255) NOT NULL,
   data_fund DATE NOT NULL,
-  empresa_fund INTEGER NOT NULL
-  REFERENCES empresa (nro)
+  empresa_fund INTEGER NOT NULL,
+  empresa_respo INTEGER NOT NULL,
+
+  FOREIGN KEY (empresa_fund) REFERENCES Empresa (nro)
   ON UPDATE CASCADE ON DELETE CASCADE,
-  empresa_respo INTEGER NOT NULL
-  REFERENCES empresa (nro)
+  FOREIGN KEY (empresa_respo) REFERENCES Empresa (nro)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE usuario (
+CREATE TABLE Usuario (
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  nick VARCHAR(100) NOT NULL UNIQUE,
-  email VARCHAR(255) NOT NULL UNIQUE,
+  nick VARCHAR(100) NOT NULL,
+  email VARCHAR(255) NOT NULL,
   data_nasc DATE NOT NULL,
   telefone VARCHAR(20) NOT NULL,
-  pais_residencia INTEGER REFERENCES pais (ddi)
-  ON UPDATE CASCADE ON DELETE SET NULL,
-  end_postal VARCHAR(50)
+  pais_residencia INTEGER,
+  end_postal VARCHAR(50),
+
+  UNIQUE (nick),
+  UNIQUE (email),
+
+  FOREIGN KEY (pais_residencia) REFERENCES Pais (ddi)
+  ON UPDATE CASCADE ON DELETE SET NULL
 );
 
-CREATE TABLE plataformausuario (
-  nro_plataforma INTEGER NOT NULL
-  REFERENCES plataforma (nro)
-  ON UPDATE CASCADE ON DELETE CASCADE,
-  id_usuario INTEGER NOT NULL
-  REFERENCES usuario (id)
-  ON UPDATE CASCADE ON DELETE CASCADE,
+CREATE TABLE PlataformaUsuario (
+  nro_plataforma INTEGER NOT NULL,
+  id_usuario INTEGER NOT NULL,
   nro_usuario INTEGER,
+
   PRIMARY KEY (nro_plataforma, id_usuario),
-  UNIQUE (nro_plataforma, nro_usuario)
+  UNIQUE (nro_plataforma, nro_usuario),
+
+  FOREIGN KEY (nro_plataforma) REFERENCES Plataforma (nro)
+  ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
+  ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE streamerpais (
-  id_usuario INTEGER NOT NULL
-  REFERENCES usuario (id)
+CREATE TABLE StreamerPais (
+  id_usuario INTEGER NOT NULL,
+  ddi_pais INTEGER NOT NULL,
+  nro_passaporte VARCHAR(50),
+
+  PRIMARY KEY (id_usuario, ddi_pais),
+  UNIQUE (nro_passaporte),
+
+  FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
   ON UPDATE CASCADE ON DELETE CASCADE,
-  ddi_pais INTEGER NOT NULL
-  REFERENCES pais (ddi)
-  ON UPDATE CASCADE ON DELETE CASCADE,
-  nro_passaporte VARCHAR(50) UNIQUE,
-  PRIMARY KEY (id_usuario, ddi_pais)
+  FOREIGN KEY (ddi_pais) REFERENCES Pais (ddi)
+  ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE empresapais (
-  nro_empresa INTEGER NOT NULL
-  REFERENCES empresa (nro)
-  ON UPDATE CASCADE ON DELETE CASCADE,
-  ddi_pais INTEGER NOT NULL
-  REFERENCES pais (ddi)
-  ON UPDATE CASCADE ON DELETE CASCADE,
+CREATE TABLE EmpresaPais (
+  nro_empresa INTEGER NOT NULL,
+  ddi_pais INTEGER NOT NULL,
   id_nacional VARCHAR(100),
+
   PRIMARY KEY (nro_empresa, ddi_pais),
-  UNIQUE (ddi_pais, id_nacional)
+  UNIQUE (ddi_pais, id_nacional),
+
+  FOREIGN KEY (nro_empresa) REFERENCES Empresa (nro)
+  ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (ddi_pais) REFERENCES Pais (ddi)
+  ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE Canal (
@@ -93,29 +107,26 @@ CREATE TABLE Canal (
   nome VARCHAR(255) NOT NULL,
   tipo TIPO_CANAL NOT NULL,
   qtd_visualizacoes INT NOT NULL,
-  data DATE NOT NULL,
+  data_criacao DATE NOT NULL,
   descricao VARCHAR(255),
 
   UNIQUE (nome, nro_plataforma),
-  FOREIGN KEY (nro_plataforma) REFERENCES plataforma (nro)
+
+  FOREIGN KEY (nro_plataforma) REFERENCES Plataforma (nro)
   ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (id_streamer) REFERENCES usuario (id)
+  FOREIGN KEY (id_streamer) REFERENCES Usuario (id)
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Um canal pode ser patrocinado pela mesma empresa 2 vezes
--- 
 CREATE TABLE Patrocinio (
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nro_empresa INT NOT NULL,
   id_canal INT NOT NULL,
   valor DECIMAL(10, 2),
-  -- dataInicio TIMESTAMP NOT NULL,
-  -- dataFim TIMESTAMP,
 
   UNIQUE (nro_empresa, id_canal),
 
-  FOREIGN KEY (nro_empresa) REFERENCES empresa (nro)
+  FOREIGN KEY (nro_empresa) REFERENCES Empresa (nro)
   ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (id_canal) REFERENCES Canal (id)
   ON DELETE CASCADE ON UPDATE CASCADE
@@ -139,7 +150,8 @@ CREATE TABLE Inscricao (
   id_membro INT,
 
   PRIMARY KEY (id_nivel, id_membro),
-  FOREIGN KEY (id_membro) REFERENCES usuario (id)
+
+  FOREIGN KEY (id_membro) REFERENCES Usuario (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (id_nivel) REFERENCES NivelCanal (id)
   ON DELETE CASCADE ON UPDATE CASCADE
@@ -167,36 +179,37 @@ CREATE TABLE Participa (
 
   PRIMARY KEY (id_video, id_streamer),
 
-  FOREIGN KEY (id_streamer) REFERENCES usuario (id)
+  FOREIGN KEY (id_streamer) REFERENCES Usuario (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- 🔹 Apenas uma tabela Comentario deve existir (havia duas)
 CREATE TABLE Comentario (
   id_video BIGINT NOT NULL,
-  num_seq BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE,
+  num_seq BIGINT GENERATED ALWAYS AS IDENTITY,
   id_usuario INT,
   texto TEXT NOT NULL,
   dataH TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   coment_on BOOLEAN NOT NULL DEFAULT TRUE,
 
   PRIMARY KEY (id_video, num_seq),
+  UNIQUE (num_seq),
 
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (id_usuario) REFERENCES usuario (id)
+  FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
   ON DELETE SET NULL ON UPDATE CASCADE
 );
 
--- Corrigido nome do tipo (estava 'StatusPagemento')
 CREATE TYPE StatusPagamento AS ENUM ('PENDENTE', 'CONCLUIDO', 'FALHOU');
 
 CREATE TABLE Doacao (
-  id_comentario BIGINT PRIMARY KEY,
+  id_comentario BIGINT,
   valor DECIMAL(10, 2) NOT NULL,
   status_pagamento STATUSPAGAMENTO NOT NULL DEFAULT 'PENDENTE',
+
+  PRIMARY KEY (id_comentario),
 
   FOREIGN KEY (id_comentario) REFERENCES Comentario (num_seq)
   ON DELETE CASCADE
@@ -259,10 +272,12 @@ RETURNS TABLE (
   total_recebido FLOAT
 )
 AS $$
-	select c.id, c.nome, c.nro_plataforma, sum(p.valor) as total_recebido
-	from canal c join patrocinio p on c.id = p.id_canal
-	group by c.id, c.nome, c.nro_plataforma
-	order by sum(p.valor) desc limit k;
+	SELECT c.id, c.nome, c.nro_plataforma, SUM(p.valor) AS total_recebido
+	FROM Canal AS c
+	INNER JOIN Patrocinio AS p ON c.id = p.id_canal
+	GROUP BY c.id, c.nome, c.nro_plataforma
+	ORDER BY SUM(p.valor) DESC
+	LIMIT k;
 $$ LANGUAGE sql;
 
 
@@ -328,16 +343,26 @@ $$ LANGUAGE sql;
 -- 			join Inscricao i on nc.id = i.id_nivel
 -- 		group by c.id, c.nome, c.nro_plataforma
 -- 	), c3 as (
--- 		select c.id, c.nome, c.nro_plataforma, sum(d.valor) as total_doacoes	
--- 		from Doacao d join Comentario co on d.id_comentario = co.num_seq and d.status_pagamento = 'CONCLUIDO'
+-- 		select c.id, c.nome, c.nro_plataforma, sum(d.valor) as total_doacoes
+-- 		from Doacao d
+-- 		join Comentario co
+-- 		  on d.id_comentario = co.num_seq
+-- 		  and d.status_pagamento = 'CONCLUIDO'
 -- 		join Video v on co.id_video = v.id
 -- 		join Canal c on v.id_canal = c.id
 -- 		group by c.id, c.nome, c.nro_plataforma
 -- 	)
--- 	select c.id, c.nome, c.nro_plataforma, (coalesce(total_valor_patrocinio,0)+coalesce(total_aporte,0)+coalesce(total_doacoes,0)) as total_faturamento
--- 	from Canal c left join c1 on c.id = c1.id
--- 		left join c2 on c.id = c2.id
--- 		left join c3 on c.id = c3.id
+-- 	select
+-- 	  c.id,
+-- 	  c.nome,
+-- 	  c.nro_plataforma,
+-- 	  (coalesce(total_valor_patrocinio,0)
+-- 	   + coalesce(total_aporte,0)
+-- 	   + coalesce(total_doacoes,0)) as total_faturamento
+-- 	from Canal c
+-- 	left join c1 on c.id = c1.id
+-- 	left join c2 on c.id = c2.id
+-- 	left join c3 on c.id = c3.id
 -- 	group by c.id, c.nome, c.nro_plataforma
 -- 	order by total_faturamento desc limit k;
 -- $$ LANGUAGE sql;
@@ -373,8 +398,8 @@ SELECT
   COUNT(p.id) AS qtd_patrocinios,
   SUM(p.valor) AS total_patrocinio
 FROM
-  canal c
-JOIN patrocinio p ON c.id = p.id_canal
+  canal AS c
+INNER JOIN patrocinio AS p ON c.id = p.id_canal
 GROUP BY c.id;
 
 /* V2 TOTAL DE MEMBROS
@@ -386,9 +411,9 @@ SELECT
   COUNT(i.id_membro) AS qtd_inscricoes,
   SUM(nc.valor) AS total_inscricao
 FROM
-  canal c
-JOIN nivelcanal nc ON c.id = nc.id_canal
-JOIN inscricao i ON nc.id = i.id_nivel
+  canal AS c
+INNER JOIN nivelcanal AS nc ON c.id = nc.id_canal
+INNER JOIN inscricao AS i ON nc.id = i.id_nivel
 GROUP BY c.id;
 
 

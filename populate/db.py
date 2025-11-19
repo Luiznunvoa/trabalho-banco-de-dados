@@ -7,7 +7,7 @@ from typing import Sequence
 
 def conn_db() -> Engine:
     try:
-        return create_engine(url ='postgresql+psycopg2://admin:2444@72.60.156.198/banco')
+        return create_engine(url ='postgresql+psycopg2://admin:123@localhost:5434/db')
     except Exception as e:
         raise Exception ("Erro ao se conectar com o banco")
 
