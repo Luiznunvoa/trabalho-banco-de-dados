@@ -1,6 +1,6 @@
 -- Exclui e recria o esquema para garantir um ambiente limpo
 -- DROP SCHEMA IF EXISTS teste4 CASCADE;
-CREATE SCHEMA core;
+  CREATE SCHEMA core;
 SET SEARCH_PATH TO core;
 
 -- -- Tabelas -- 
@@ -8,19 +8,19 @@ SET SEARCH_PATH TO core;
 
 CREATE TYPE TIPO_CANAL AS ENUM ('privado', 'publico', 'misto');
 
-CREATE TABLE Empresa (
+CREATE TABLE Empresa ( -- OK
   nro INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nome VARCHAR(255) NOT NULL,
   nome_fantasia VARCHAR(255)
 );
 
-CREATE TABLE Conversao (
+CREATE TABLE Conversao ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   moeda VARCHAR(100) NOT NULL,
-  fator_conver NUMERIC(18, 8) NOT NULL
+  fator_conver NUMERIC(18, 8) NOT NULL  
 );
 
-CREATE TABLE Pais (
+CREATE TABLE Pais ( -- OK
   ddi INTEGER NOT NULL PRIMARY KEY,
   nome VARCHAR(100) NOT NULL,
   id_moeda INTEGER NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE Pais (
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE Plataforma (
+CREATE TABLE Plataforma ( -- OK
   nro INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nome VARCHAR(255) NOT NULL,
   data_fund DATE NOT NULL,
@@ -119,12 +119,11 @@ CREATE TABLE Canal (
 );
 
 CREATE TABLE Patrocinio (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nro_empresa INT NOT NULL,
   id_canal INT NOT NULL,
   valor DECIMAL(10, 2),
 
-  UNIQUE (nro_empresa, id_canal),
+  PRIMARY KEY (nro_empresa, id_canal),
 
   FOREIGN KEY (nro_empresa) REFERENCES Empresa (nro)
   ON DELETE CASCADE ON UPDATE CASCADE,
@@ -187,31 +186,34 @@ CREATE TABLE Participa (
 
 CREATE TABLE Comentario (
   id_video BIGINT NOT NULL,
-  num_seq BIGINT GENERATED ALWAYS AS IDENTITY,
+  num_seq INT,
   id_usuario INT,
   texto TEXT NOT NULL,
   dataH TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  coment_on BOOLEAN NOT NULL DEFAULT TRUE,
+  coment_on BOOLEAN NOT NULL DEFAULT FALSE,
 
-  PRIMARY KEY (id_video, num_seq),
-  UNIQUE (num_seq),
+  -- id_usuario deve fazer parte da chave primária?
+  PRIMARY KEY (id_video, num_seq, id_usuario),
 
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
-  ON DELETE SET NULL ON UPDATE CASCADE
+  ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TYPE StatusPagamento AS ENUM ('PENDENTE', 'CONCLUIDO', 'FALHOU');
 
 CREATE TABLE Doacao (
-  id_comentario BIGINT,
+  id_video BIGINT NOT NULL,
+  num_seq BIGINT NOT NULL,
   valor DECIMAL(10, 2) NOT NULL,
   status_pagamento STATUSPAGAMENTO NOT NULL DEFAULT 'PENDENTE',
 
   PRIMARY KEY (id_comentario),
 
-  FOREIGN KEY (id_comentario) REFERENCES Comentario (num_seq)
+  FOREIGN KEY (id_video) REFERENCES Comentario (num_seq)
+  ON DELETE CASCADE,
+  FOREIGN KEY (num_seq) REFERENCES Comentario (num_seq)
   ON DELETE CASCADE
 );
 
