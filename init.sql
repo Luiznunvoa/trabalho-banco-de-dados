@@ -8,12 +8,15 @@ SET SEARCH_PATH TO core;
 
 CREATE TYPE TIPO_CANAL AS ENUM ('privado', 'publico', 'misto');
 
+CREATE TYPE StatusPagamento AS ENUM ('PENDENTE', 'CONCLUIDO', 'FALHOU');
+
 CREATE TABLE Empresa ( -- OK
   nro INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nome VARCHAR(255) NOT NULL,
   nome_fantasia VARCHAR(255)
 );
 
+-- trocamos os nomes dos atributos para facilitar visualização, não alteramos a lógica
 CREATE TABLE Conversao ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   moeda VARCHAR(100) NOT NULL,
@@ -42,7 +45,9 @@ CREATE TABLE Plataforma ( -- OK
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE Usuario (
+-- Criamos ID artificial pois nick é varchar, o que dificulta a integração com outras tabelas e
+-- é menos eficiente de trabalhar
+CREATE TABLE Usuario ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nick VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL,
@@ -58,7 +63,7 @@ CREATE TABLE Usuario (
   ON UPDATE CASCADE ON DELETE SET NULL
 );
 
-CREATE TABLE PlataformaUsuario (
+CREATE TABLE PlataformaUsuario ( -- OK
   nro_plataforma INTEGER NOT NULL,
   id_usuario INTEGER NOT NULL,
   nro_usuario INTEGER,
@@ -72,7 +77,7 @@ CREATE TABLE PlataformaUsuario (
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE StreamerPais (
+CREATE TABLE StreamerPais ( -- OK
   id_usuario INTEGER NOT NULL,
   ddi_pais INTEGER NOT NULL,
   nro_passaporte VARCHAR(50),
@@ -86,7 +91,7 @@ CREATE TABLE StreamerPais (
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE EmpresaPais (
+CREATE TABLE EmpresaPais ( -- OK
   nro_empresa INTEGER NOT NULL,
   ddi_pais INTEGER NOT NULL,
   id_nacional VARCHAR(100),
@@ -100,7 +105,11 @@ CREATE TABLE EmpresaPais (
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE Canal (
+-- Criamos ID artificial pois "nome" é varchar, que é menos eficiente de usar em buscas
+-- e CANAL é  referenciado em outras tabelas e achamos melhor simplificar a integração
+-- o INTEGER é suficiente para acomodar o número de canais existentes em múltiplas plataformas visto que
+-- o limite do int é 2.147 milhões e o youtube possui ~113.9 milhões
+CREATE TABLE Canal ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_streamer INT NOT NULL,
   nro_plataforma INT NOT NULL,
@@ -118,7 +127,7 @@ CREATE TABLE Canal (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE Patrocinio (
+CREATE TABLE Patrocinio ( -- OK
   nro_empresa INT NOT NULL,
   id_canal INT NOT NULL,
   valor DECIMAL(10, 2),
@@ -131,7 +140,10 @@ CREATE TABLE Patrocinio (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE NivelCanal (
+-- Criamos ID artificial pois "nível" é varchar, que é menos eficiente de usar em buscas
+-- Decidimos que apenas o id na chave primária seria o suficiente para comportar todos os níveis
+-- caso queira um grau de segurança maior a um prazo longo, poderia ser um BIGINT
+CREATE TABLE NivelCanal ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_canal INT NOT NULL,
   nivel VARCHAR(127) NOT NULL,
@@ -156,7 +168,10 @@ CREATE TABLE Inscricao (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE Video (
+-- Criamos ID artificial pois "titulo" é varchar e "datah" é DATE, que seria bastante ineficiente para trabalhar
+-- Resolvemos criar um id único sendo BIGINT pois, uma chave primária composta [id_canal,id_video] ocupa 8 bytes, o mesmo tamanho do BIGINT
+-- porém a chave composta única é melhor de visualizar e integrar com outras tabelas
+CREATE TABLE Video ( -- OK
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_canal INT NOT NULL,
   titulo VARCHAR(255),
@@ -172,7 +187,7 @@ CREATE TABLE Video (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE Participa (
+CREATE TABLE Participa ( -- OK
   id_video BIGINT,
   id_streamer INT,
 
@@ -184,7 +199,7 @@ CREATE TABLE Participa (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE Comentario (
+CREATE TABLE Comentario ( -- OK
   id_video BIGINT NOT NULL,
   num_seq INT,
   id_usuario INT,
@@ -192,7 +207,6 @@ CREATE TABLE Comentario (
   dataH TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   coment_on BOOLEAN NOT NULL DEFAULT FALSE,
 
-  -- id_usuario deve fazer parte da chave primária?
   PRIMARY KEY (id_video, num_seq, id_usuario),
 
   FOREIGN KEY (id_video) REFERENCES Video (id)
@@ -201,60 +215,60 @@ CREATE TABLE Comentario (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TYPE StatusPagamento AS ENUM ('PENDENTE', 'CONCLUIDO', 'FALHOU');
-
 CREATE TABLE Doacao (
   id_video BIGINT NOT NULL,
-  num_seq BIGINT NOT NULL,
+  num_seq INT NOT NULL,
   valor DECIMAL(10, 2) NOT NULL,
   status_pagamento STATUSPAGAMENTO NOT NULL DEFAULT 'PENDENTE',
 
-  PRIMARY KEY (id_comentario),
+  PRIMARY KEY (id_video,num_seq),
 
-  FOREIGN KEY (id_video) REFERENCES Comentario (num_seq)
-  ON DELETE CASCADE,
-  FOREIGN KEY (num_seq) REFERENCES Comentario (num_seq)
-  ON DELETE CASCADE
+  FOREIGN KEY (id_video, num_seq) REFERENCES Comentario (id_video, num_seq)
+      ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE Bitcoin (
-  id_doacao BIGINT,
+  id_video_doacao BIGINT,
+  seq_doacao INT,
   tx_id VARCHAR(64),
 
-  PRIMARY KEY (id_doacao, tx_id),
+  PRIMARY KEY (id_video_doacao,seq_doacao, tx_id),
 
-  FOREIGN KEY (id_doacao) REFERENCES Doacao (id_comentario)
+  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE CartaoCredito (
-  id_doacao BIGINT,
+  id_video_doacao BIGINT,
+  seq_doacao INT,
   num VARCHAR(24),
   bandeira VARCHAR(32),
 
-  PRIMARY KEY (id_doacao, num),
+  PRIMARY KEY (id_video_doacao,seq_doacao, num),
   UNIQUE (num, bandeira),
 
-  FOREIGN KEY (id_doacao) REFERENCES Doacao (id_comentario)
+  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE Paypal (
-  id_doacao BIGINT,
+  id_video_doacao BIGINT,
+  seq_doacao INT,
   id INT,
 
-  PRIMARY KEY (id_doacao, id),
+  PRIMARY KEY (id_video_doacao,seq_doacao, id),
 
-  FOREIGN KEY (id_doacao) REFERENCES Doacao (id_comentario)
+  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE MecPlat (
-  id_doacao BIGINT,
+  id_video_doacao BIGINT,
+  seq_doacao INT,
   seq INT,
 
-  PRIMARY KEY (id_doacao, seq),
+  PRIMARY KEY (id_video_doacao,seq_doacao, seq),
 
-  FOREIGN KEY (id_doacao) REFERENCES Doacao (id_comentario)
+  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
