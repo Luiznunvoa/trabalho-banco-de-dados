@@ -13,7 +13,10 @@ from faker import Faker
 
 from .config import DataConfig
 from .batch_inserter import BatchInserter
-from models import Empresa, Conversao, Pais, Plataforma, Usuario, Video, Comentario
+from models import (
+    Empresa, Conversao, Pais, Plataforma, Usuario, Video, Comentario, 
+    Canal, NivelCanal, Doacao
+)
 from aux_func import (
     generate_empresas, generate_conversoes, generate_paises, generate_plataformas,
     generate_usuarios, generate_plataforma_usuarios, generate_streamer_paises,
@@ -177,7 +180,8 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     print(f"📦 [5/9] Gerando {config.n_patrocinios:,} patrocínios e níveis de canal...")
     inicio = time.time()
     
-    canais = session.query(Usuario).filter(Usuario.id.in_(streamer_ids)).all()  # Streamers == Canais
+    # Busca os canais criados (não os usuários!)
+    canais = session.query(Canal).all()
     
     # Patrocínios (assinatura: fake, empresas, canais, count)
     patrocinios_list = generate_patrocinios(fake, empresas, canais, config.n_patrocinios)
@@ -202,7 +206,6 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     inicio = time.time()
     
     # Busca níveis de canal
-    from models import NivelCanal
     nivel_canais = session.query(NivelCanal).all()
     
     # Inscrições com estado
@@ -326,7 +329,6 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     print("📦 [9/9] Gerando detalhes de pagamento...")
     inicio = time.time()
     
-    from models import Doacao
     doacoes = session.query(Doacao).all()
     bitcoins, cartoes, paypals, mec_plats = generate_pagamentos(fake, doacoes)
     
