@@ -7,6 +7,7 @@ organizando as entidades em níveis hierárquicos baseados em suas dependências
 
 import time
 import random
+import gc
 from sqlalchemy.orm import Session
 from faker import Faker
 
@@ -143,25 +144,25 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
         fetch_model=Usuario  # Busca objetos Usuario a partir dos IDs
     )
     
-    # StreamerPais e EmpresaPais
+    # StreamerPais e EmpresaPais (geradores com assinatura diferente)
     print("    Gerando StreamerPais...")
-    inserter.insert_simple(
-        generate_streamer_paises, config.n_streamer_paises, config.batch_sizes.small,
-        "StreamerPais", streamers, paises
-    )
+    streamer_paises_list = generate_streamer_paises(fake, streamers, paises, config.n_streamer_paises)
+    session.add_all(streamer_paises_list)
+    session.flush()
+    del streamer_paises_list
     
     print("    Gerando EmpresaPais...")
-    inserter.insert_simple(
-        generate_empresa_paises, config.n_empresa_paises, config.batch_sizes.small,
-        "EmpresaPais", empresas, paises
-    )
+    empresa_paises_list = generate_empresa_paises(fake, empresas, paises, config.n_empresa_paises)
+    session.add_all(empresa_paises_list)
+    session.flush()
+    del empresa_paises_list
     
-    # Canais
+    # Canais (gerador sem count - gera 1 por streamer)
     print("    Gerando Canais...")
-    inserter.insert_simple(
-        generate_canais, config.n_canais, config.batch_sizes.medium,
-        "Canais", plataformas_list, streamers
-    )
+    canais_list = generate_canais(fake, plataformas_list, streamers)
+    session.add_all(canais_list)
+    session.flush()
+    del canais_list
     
     tempo_nivel4 = time.time() - inicio
     timings['nivel_4'] = tempo_nivel4
@@ -178,15 +179,17 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     
     canais = session.query(Usuario).filter(Usuario.id.in_(streamer_ids)).all()  # Streamers == Canais
     
-    inserter.insert_simple(
-        generate_patrocinios, config.n_patrocinios, config.batch_sizes.medium,
-        "Patrocínios", empresas, canais
-    )
+    # Patrocínios (assinatura: fake, empresas, canais, count)
+    patrocinios_list = generate_patrocinios(fake, empresas, canais, config.n_patrocinios)
+    session.add_all(patrocinios_list)
+    session.flush()
+    del patrocinios_list
     
-    inserter.insert_simple(
-        generate_nivel_canais, config.n_niveis_totais, config.batch_sizes.medium,
-        "NivelCanal", canais, config.niveis_por_canal
-    )
+    # Níveis de Canal (assinatura: fake, canais, niveis_por_canal)
+    nivel_canais_list = generate_nivel_canais(fake, canais, config.niveis_por_canal)
+    session.add_all(nivel_canais_list)
+    session.flush()
+    del nivel_canais_list
     
     tempo_nivel5 = time.time() - inicio
     timings['nivel_5'] = tempo_nivel5
@@ -246,12 +249,12 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
         batch_ids = video_ids[i:i+FETCH_BATCH]
         videos_objs.extend(session.query(Video).filter(Video.id.in_(batch_ids)).all())
     
-    # Participações
+    # Participações (assinatura: videos, streamers, count - SEM fake)
     print("    Gerando Participações...")
-    inserter.insert_simple(
-        generate_participacoes, config.n_participacoes, config.batch_sizes.large,
-        "Participações", videos_objs, streamers
-    )
+    participacoes_list = generate_participacoes(videos_objs, streamers, config.n_participacoes)
+    session.add_all(participacoes_list)
+    session.flush()
+    del participacoes_list
     
     # Comentários (MAIOR VOLUME) com estado
     print("    Gerando Comentários em lotes (pode demorar)...")
@@ -306,12 +309,12 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     print("📦 [8/9] Gerando doações...")
     inicio = time.time()
     
-    # Busca comentários para gerar doações
+    # Busca comentários para gerar doações (assinatura: fake, comentarios - sem count)
     comentarios_list = session.query(Comentario).limit(config.n_comentarios).all()
-    inserter.insert_simple(
-        generate_doacoes, len(comentarios_list), config.batch_sizes.large,
-        "Doações", comentarios_list
-    )
+    doacoes_list = generate_doacoes(fake, comentarios_list)
+    session.add_all(doacoes_list)
+    session.flush()
+    del comentarios_list  # Libera memória
     
     tempo_nivel8 = time.time() - inicio
     timings['nivel_8'] = tempo_nivel8
