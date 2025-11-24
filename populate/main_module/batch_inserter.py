@@ -7,6 +7,7 @@ de inserção em lotes, controle de progresso, garbage collection e commits.
 
 import gc
 import time
+import random
 from typing import Callable, Any, Optional, Dict, List
 from sqlalchemy.orm import Session
 from faker import Faker
@@ -143,6 +144,7 @@ class BatchInserter:
         state: Dict[str, Any],
         sample_data: List[Any],
         sample_size_multiplier: int = 2,
+        fetch_model: Optional[Any] = None,
         *args,
         **kwargs
     ) -> float:
@@ -157,6 +159,7 @@ class BatchInserter:
             state: Dicionário de estado compartilhado entre lotes
             sample_data: Lista de IDs ou objetos para amostrar
             sample_size_multiplier: Multiplicador do tamanho da amostra (padrão: 2x)
+            fetch_model: Se fornecido, busca objetos do modelo a partir dos IDs em sample_data
             *args: Argumentos posicionais para a função geradora
             **kwargs: Argumentos nomeados para a função geradora
             
@@ -171,9 +174,14 @@ class BatchInserter:
             current_size = min(batch_size, total_count - inserted)
             
             # Amostra dados para este lote
-            import random
             sample_size = min(current_size * sample_size_multiplier, len(sample_data))
-            sample = random.sample(sample_data, sample_size)
+            sample_ids = random.sample(sample_data, sample_size)
+            
+            # Se fetch_model foi fornecido, busca os objetos correspondentes
+            if fetch_model is not None:
+                sample = self.session.query(fetch_model).filter(fetch_model.id.in_(sample_ids)).all()
+            else:
+                sample = sample_ids
             
             # Gera o lote com estado
             batch_data = generator_func(sample, current_size, state, *args, **kwargs)

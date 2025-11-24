@@ -139,7 +139,8 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     state_pu = {'pk_pairs': pk_pairs_state, 'uk': uk_state}
     inserter.insert_with_state(
         generate_pu_wrapper, config.n_plataforma_usuarios, config.batch_sizes.huge,
-        "PlataformaUsuario", state_pu, usuario_ids, sample_size_multiplier=2
+        "PlataformaUsuario", state_pu, usuario_ids, sample_size_multiplier=2,
+        fetch_model=Usuario  # Busca objetos Usuario a partir dos IDs
     )
     
     # StreamerPais e EmpresaPais
@@ -212,7 +213,8 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     state_insc = {'pairs': inscricoes_pairs_state}
     inserter.insert_with_state(
         generate_insc_wrapper, config.n_inscricoes, config.batch_sizes.huge,
-        "Inscrições", state_insc, usuario_ids, sample_size_multiplier=2
+        "Inscrições", state_insc, usuario_ids, sample_size_multiplier=2,
+        fetch_model=Usuario  # Busca objetos Usuario a partir dos IDs
     )
     
     # Vídeos com offset
