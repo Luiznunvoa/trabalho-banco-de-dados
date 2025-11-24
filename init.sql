@@ -1,6 +1,5 @@
--- Exclui e recria o esquema para garantir um ambiente limpo
--- DROP SCHEMA IF EXISTS teste4 CASCADE;
-CREATE SCHEMA core;
+-- Cria o esquema se não existir
+CREATE SCHEMA IF NOT EXISTS core;
 SET SEARCH_PATH TO core;
 
 -- -- Tabelas -- 

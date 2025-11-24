@@ -1,12 +1,25 @@
 #!/usr/bin/env python3
 """
-Script principal de população do banco de dados (versão legada - use main_optimized.py).
+Script principal de população do banco de dados (versão otimizada).
 
-Este script usa a estrutura modular do main_module para gerar e inserir
-dados sintéticos no banco de dados PostgreSQL.
+Este script modular orquestra a geração e inserção de dados sintéticos
+para testes de performance do banco de dados PostgreSQL.
 
-Para usar a versão otimizada com presets configuráveis:
+Uso:
     python main_optimized.py [PRESET]
+    
+Presets disponíveis:
+    - DESENVOLVIMENTO_RAPIDO: ~10k usuários, ~1-2min
+    - TESTE_FUNCIONAL: ~50k usuários, ~5-10min
+    - TESTE_PERFORMANCE: ~500k usuários, ~15-45min (padrão)
+    - TESTE_INDICES: ~800k usuários, ~30-60min
+    - STRESS_TEST_EXTREMO: ~1M usuários, ~1-3h
+
+Exemplos:
+    python main_optimized.py
+    python main_optimized.py DESENVOLVIMENTO_RAPIDO
+    python main_optimized.py STRESS_TEST_EXTREMO
+    python main_optimized.py --list
 """
 
 import sys
@@ -14,7 +27,7 @@ from sqlalchemy.orm import Session
 from faker import Faker
 
 from db import conn_db
-from main_module.config import get_preset
+from main_module.config import get_preset, list_presets
 from main_module.statistics import print_data_statistics
 from main_module.database_cleaner import clean_database
 from main_module.data_population import populate_all_data
@@ -38,8 +51,28 @@ def print_timings_summary(timings: dict) -> None:
 
 def main():
     """Função principal do script."""
-    # Usa o preset padrão (TESTE_PERFORMANCE)
-    config = get_preset("TESTE_PERFORMANCE")
+    
+    # Determina qual preset usar
+    preset_name = "TESTE_PERFORMANCE"  # Padrão
+    
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ['--help', '-h', 'help']:
+            print(__doc__)
+            list_presets()
+            return
+        elif sys.argv[1] == '--list':
+            list_presets()
+            return
+        else:
+            preset_name = sys.argv[1]
+    
+    # Carrega configuração
+    try:
+        config = get_preset(preset_name)
+    except KeyError as e:
+        print(f"❌ Erro: {e}")
+        print("\nUse 'python main_optimized.py --list' para ver os presets disponíveis.")
+        return
     
     # Inicialização
     engine = conn_db()
@@ -79,6 +112,7 @@ def main():
             import traceback
             traceback.print_exc()
             session.rollback()
+
 
 if __name__ == "__main__":
     main()
