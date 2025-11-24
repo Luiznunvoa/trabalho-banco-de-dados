@@ -83,8 +83,8 @@ def main():
     fake = Faker('pt_BR') 
     
     try:
-        print("Recriando tabelas no banco de dados a partir de schema.sql...")
-        with open('/home/luiz/Dev/UFF/BD2/trabalho banco de dados/schema.sql', 'r') as f:
+        print("Recriando tabelas no banco de dados a partir de init.sql...")
+        with open('/home/luiz/Dev/UFF/BD2/trabalho banco de dados/init.sql', 'r') as f:
             sql_script = f.read()
 
         with engine.connect() as connection:

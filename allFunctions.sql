@@ -77,11 +77,12 @@ RETURNS TABLE (
 AS $$
 	SELECT
 	  d.id_canal,
-	  d.nome,
+	  c.nome,
 	  d.qtd_doacoes,
 	  d.total_doacao
 	FROM
 	  vw_faturamento_doacao as d
+	  JOIN Canal c ON d.id_canal = c.id
 	where id_escolhido is null or id_escolhido = d.id_canal
 	ORDER BY total_doacao DESC;
 
@@ -104,17 +105,17 @@ AS $$
 	SELECT
 	  v.id_canal,
 	  v.titulo,
-	  COUNT(d.id_comentario) AS qtd_doacoes_lidas,
+	  COUNT(*) AS qtd_doacoes_lidas,
 	  SUM(d.valor) AS total_doacao
 	FROM
 	  doacao AS d
 	INNER JOIN comentario AS com
-	  ON d.id_comentario = com.num_seq
+	  ON d.id_video = com.id_video AND d.num_seq = com.num_seq
 	INNER JOIN video AS v
 	  ON com.id_video = v.id
 	WHERE com.coment_on = true AND d.status_pagamento = 'CONCLUIDO'
-		and id_escolhido is null or id_escolhido = com.id_video
-	GROUP BY v.id
+		and (id_escolhido is null or id_escolhido = com.id_video)
+	GROUP BY v.id, v.id_canal, v.titulo
 	ORDER BY total_doacao DESC;
 
 $$ LANGUAGE sql;
@@ -130,10 +131,11 @@ RETURNS TABLE (
 )
 AS $$
 SELECT
-  nome,
-  qtd_patrocinios,
-  total_patrocinio
-FROM vw_faturamento_patrocinio
+  c.nome,
+  p.qtd_patrocinios,
+  p.total_patrocinio
+FROM vw_faturamento_patrocinio p
+JOIN Canal c ON p.id_canal = c.id
 ORDER BY qtd_patrocinios DESC, total_patrocinio DESC -- Ordena pela QUANTIDADE, como na sua query
 LIMIT COALESCE(k, NULL);
 $$ LANGUAGE sql;
@@ -150,10 +152,11 @@ RETURNS TABLE (
 )
 AS $$
 SELECT
-	  nome,
-	  qtd_inscricoes,
-	  total_inscricao
-	FROM vw_faturamento_inscricao
+	  c.nome,
+	  i.qtd_inscricoes,
+	  i.total_inscricao
+	FROM vw_faturamento_inscricao i
+	JOIN Canal c ON i.id_canal = c.id
 	ORDER BY total_inscricao DESC
 	LIMIT COALESCE(k, NULL);
 $$ LANGUAGE sql;
@@ -170,11 +173,12 @@ RETURNS TABLE (
 )
 AS $$
 	SELECT
-	  nome,
-	  qtd_doacoes,
-	  total_doacao
+	  c.nome,
+	  d.qtd_doacoes,
+	  d.total_doacao
 	FROM
-	  vw_faturamento_doacao
+	  vw_faturamento_doacao d
+	  JOIN Canal c ON d.id_canal = c.id
 	ORDER BY qtd_doacoes DESC, total_doacao DESC
 	LIMIT COALESCE(k, NULL);
 $$ LANGUAGE sql;

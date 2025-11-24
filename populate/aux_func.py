@@ -297,16 +297,38 @@ def generate_participacoes(videos: list[Video], streamers: list[Usuario], count:
 def generate_comentarios(fake: Faker, count: int, videos: list[Video], usuarios: list[Usuario]) -> list[Comentario]:
     """Gera uma lista de comentários fictícios."""
     comentarios: list[Comentario] = []
+    # Rastreia (id_video, num_seq, id_usuario) para evitar duplicatas
+    comentarios_set = set()
+    # Rastreia o próximo num_seq disponível por vídeo
+    num_seq_por_video = {}
+    
     for _ in range(count):
-        comentarios.append(
-            Comentario(
-                id_video=random.choice(videos).id,
-                id_usuario=random.choice(usuarios).id,
-                texto=fake.text(),
-                data_h=fake.date_time_this_year(),
-                coment_on=fake.boolean()
+        video = random.choice(videos)
+        usuario = random.choice(usuarios)
+        
+        # Inicializa o contador de num_seq para este vídeo se não existir
+        if video.id not in num_seq_por_video:
+            num_seq_por_video[video.id] = 1
+        
+        # Obtém o próximo num_seq para este vídeo
+        num_seq = num_seq_por_video[video.id]
+        
+        # Verifica se esta combinação já existe
+        if (video.id, num_seq, usuario.id) not in comentarios_set:
+            comentarios_set.add((video.id, num_seq, usuario.id))
+            comentarios.append(
+                Comentario(
+                    id_video=video.id,
+                    num_seq=num_seq,
+                    id_usuario=usuario.id,
+                    texto=fake.text(),
+                    data_h=fake.date_time_this_year(),
+                    coment_on=fake.boolean()
+                )
             )
-        )
+            # Incrementa o num_seq para o próximo comentário deste vídeo
+            num_seq_por_video[video.id] += 1
+    
     return comentarios
 
 def generate_doacoes(fake: Faker, comentarios: list[Comentario]) -> list[Doacao]:
@@ -316,7 +338,8 @@ def generate_doacoes(fake: Faker, comentarios: list[Comentario]) -> list[Doacao]
     for comentario in comentarios_doacao:
         doacoes.append(
             Doacao(
-                id_comentario=comentario.num_seq,
+                id_video=comentario.id_video,
+                num_seq=comentario.num_seq,
                 valor=fake.pydecimal(left_digits=4, right_digits=2, positive=True),
                 status_pagamento=random.choice(list(StatusPagamento))
             )
@@ -338,7 +361,11 @@ def generate_pagamentos(fake: Faker, doacoes: list[Doacao]) -> tuple[list[Bitcoi
     split3 = 3 * num_doacoes // 4
 
     for doacao in doacoes_shuffled[:split1]:
-        bitcoins.append(Bitcoin(id_doacao=doacao.id_comentario, tx_id=fake.sha256()))
+        bitcoins.append(Bitcoin(
+            id_video_doacao=doacao.id_video,
+            seq_doacao=doacao.num_seq,
+            tx_id=fake.sha256()
+        ))
 
     used_card_nums = set()
     for doacao in doacoes_shuffled[split1:split2]:
@@ -353,16 +380,25 @@ def generate_pagamentos(fake: Faker, doacoes: list[Doacao]) -> tuple[list[Bitcoi
         used_card_nums.add(card_num_clean)
         cartoes.append(
             CartaoCredito(
-                id_doacao=doacao.id_comentario,
+                id_video_doacao=doacao.id_video,
+                seq_doacao=doacao.num_seq,
                 num=card_num_clean,
                 bandeira=fake.credit_card_provider()
             )
         )
     
     for i, doacao in enumerate(doacoes_shuffled[split2:split3]):
-        paypals.append(Paypal(id_doacao=doacao.id_comentario, id=i))
+        paypals.append(Paypal(
+            id_video_doacao=doacao.id_video,
+            seq_doacao=doacao.num_seq,
+            id=i
+        ))
 
     for i, doacao in enumerate(doacoes_shuffled[split3:]):
-        mec_plats.append(MecPlat(id_doacao=doacao.id_comentario, seq=i))
+        mec_plats.append(MecPlat(
+            id_video_doacao=doacao.id_video,
+            seq_doacao=doacao.num_seq,
+            seq=i
+        ))
 
     return bitcoins, cartoes, paypals, mec_plats

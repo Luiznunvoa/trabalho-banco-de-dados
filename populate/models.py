@@ -1,7 +1,7 @@
 from sqlalchemy import (
     create_engine, Column, Integer, String, Numeric, Date, Time, 
     Boolean, Text, ForeignKey, BigInteger, Enum, DECIMAL, TIMESTAMP, UniqueConstraint,
-    text
+    ForeignKeyConstraint, text
 )
 from sqlalchemy.orm import declarative_base, relationship
 import enum
@@ -155,14 +155,10 @@ class Canal(Base):
 
 class Patrocinio(Base):
     __tablename__ = "patrocinio"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    __table_args__ = (
-        UniqueConstraint("nro_empresa", "id_canal"),
-        {'schema': SCHEMA}
-    )
+    __table_args__ = {'schema': SCHEMA}
 
-    nro_empresa = Column(Integer, ForeignKey(f"{SCHEMA}.empresa.nro", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
-    id_canal = Column(Integer, ForeignKey(f"{SCHEMA}.canal.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    nro_empresa = Column(Integer, ForeignKey(f"{SCHEMA}.empresa.nro", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
+    id_canal = Column(Integer, ForeignKey(f"{SCHEMA}.canal.id", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
     valor = Column(DECIMAL(10, 2))
 
 
@@ -217,63 +213,84 @@ class Participa(Base):
 
 class Comentario(Base):
     __tablename__ = "comentario"
-    # CORREÇÃO: Reordenado para (Constraint, Dictionary)
-    __table_args__ = (UniqueConstraint("num_seq"), {'schema': SCHEMA})
+    __table_args__ = (
+        UniqueConstraint("id_video", "num_seq"),
+        {'schema': SCHEMA}
+    )
 
     id_video = Column(BigInteger, ForeignKey(f"{SCHEMA}.video.id", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
-    num_seq = Column(BigInteger, primary_key=True, autoincrement=True) 
-
-    id_usuario = Column(Integer, ForeignKey(f"{SCHEMA}.usuario.id", onupdate="CASCADE", ondelete="SET NULL"))
+    num_seq = Column(Integer, primary_key=True)
+    id_usuario = Column(Integer, ForeignKey(f"{SCHEMA}.usuario.id", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
+    
     texto = Column(Text, nullable=False)
     data_h = Column("datah", TIMESTAMP, nullable=False)
-    coment_on = Column(Boolean, nullable=False, default=True)
+    coment_on = Column(Boolean, nullable=False, default=False)
 
 
 class Doacao(Base):
     __tablename__ = "doacao"
-    # CORREÇÃO: Usando dicionário direto
-    __table_args__ = {'schema': SCHEMA}
 
-    id_comentario = Column(BigInteger, ForeignKey(f"{SCHEMA}.comentario.num_seq", ondelete="CASCADE"), primary_key=True)
+    id_video = Column(BigInteger, primary_key=True)
+    num_seq = Column(Integer, primary_key=True)
+    
     valor = Column(DECIMAL(10, 2), nullable=False)
-    # Uso do ENUM que causava o problema de dependência
-    status_pagamento = Column(Enum(StatusPagamento, name='status_pagamento', schema=SCHEMA, create_type=False), nullable=False, default=StatusPagamento.PENDENTE)
+    status_pagamento = Column(Enum(StatusPagamento, name='StatusPagamento', schema=SCHEMA, create_type=False), nullable=False, default=StatusPagamento.PENDENTE)
+    
+    __table_args__ = (
+        ForeignKeyConstraint(['id_video', 'num_seq'], [f"{SCHEMA}.comentario.id_video", f"{SCHEMA}.comentario.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        {'schema': SCHEMA}
+    )
 
 
 class Bitcoin(Base):
     __tablename__ = "bitcoin"
-    # CORREÇÃO: Usando dicionário direto
-    __table_args__ = {'schema': SCHEMA}
 
-    id_doacao = Column(BigInteger, ForeignKey(f"{SCHEMA}.doacao.id_comentario", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
+    id_video_doacao = Column(BigInteger, primary_key=True)
+    seq_doacao = Column(Integer, primary_key=True)
     tx_id = Column(String(64), primary_key=True)
+    
+    __table_args__ = (
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        {'schema': SCHEMA}
+    )
 
 
 class CartaoCredito(Base):
     __tablename__ = "cartaocredito"
+
+    id_video_doacao = Column(BigInteger, primary_key=True)
+    seq_doacao = Column(Integer, primary_key=True)
+    num = Column(String(24), primary_key=True)
+    bandeira = Column(String(32))
+    
     __table_args__ = (
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
         UniqueConstraint("num", "bandeira"),
         {'schema': SCHEMA}
     )
 
-    id_doacao = Column(BigInteger, ForeignKey(f"{SCHEMA}.doacao.id_comentario", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
-    num = Column(String(24), primary_key=True)
-    bandeira = Column(String(32))
-
 
 class Paypal(Base):
     __tablename__ = "paypal"
-    # CORREÇÃO: Usando dicionário direto
-    __table_args__ = {'schema': SCHEMA}
 
-    id_doacao = Column(BigInteger, ForeignKey(f"{SCHEMA}.doacao.id_comentario", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
+    id_video_doacao = Column(BigInteger, primary_key=True)
+    seq_doacao = Column(Integer, primary_key=True)
     id = Column(Integer, primary_key=True)
+    
+    __table_args__ = (
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        {'schema': SCHEMA}
+    )
 
 
 class MecPlat(Base):
     __tablename__ = "mecplat"
-    # CORREÇÃO: Usando dicionário direto
-    __table_args__ = {'schema': SCHEMA}
 
-    id_doacao = Column(BigInteger, ForeignKey(f"{SCHEMA}.doacao.id_comentario", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
+    id_video_doacao = Column(BigInteger, primary_key=True)
+    seq_doacao = Column(Integer, primary_key=True)
     seq = Column(Integer, primary_key=True)
+    
+    __table_args__ = (
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        {'schema': SCHEMA}
+    )

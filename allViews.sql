@@ -18,7 +18,7 @@ GROUP BY
 CREATE OR REPLACE VIEW vw_faturamento_patrocinio AS
 SELECT
   p.id_canal,
-  COUNT(p.id) AS qtd_patrocinios,
+  COUNT(p.nro_empresa) AS qtd_patrocinios,
   SUM(p.valor) AS total_patrocinio
 FROM patrocinio AS p
 GROUP BY p.id_canal;
