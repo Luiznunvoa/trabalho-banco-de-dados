@@ -1,6 +1,6 @@
 -- Exclui e recria o esquema para garantir um ambiente limpo
 -- DROP SCHEMA IF EXISTS teste4 CASCADE;
-  CREATE SCHEMA core;
+CREATE SCHEMA core;
 SET SEARCH_PATH TO core;
 
 -- -- Tabelas -- 
@@ -20,7 +20,7 @@ CREATE TABLE Empresa ( -- OK
 CREATE TABLE Conversao ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   moeda VARCHAR(100) NOT NULL,
-  fator_conver NUMERIC(18, 8) NOT NULL  
+  fator_conver NUMERIC(18, 8) NOT NULL
 );
 
 CREATE TABLE Pais ( -- OK
@@ -221,10 +221,10 @@ CREATE TABLE Doacao (
   valor DECIMAL(10, 2) NOT NULL,
   status_pagamento STATUSPAGAMENTO NOT NULL DEFAULT 'PENDENTE',
 
-  PRIMARY KEY (id_video,num_seq),
+  PRIMARY KEY (id_video, num_seq),
 
   FOREIGN KEY (id_video, num_seq) REFERENCES Comentario (id_video, num_seq)
-      ON DELETE CASCADE ON UPDATE CASCADE
+  ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE Bitcoin (
@@ -232,9 +232,9 @@ CREATE TABLE Bitcoin (
   seq_doacao INT,
   tx_id VARCHAR(64),
 
-  PRIMARY KEY (id_video_doacao,seq_doacao, tx_id),
+  PRIMARY KEY (id_video_doacao, seq_doacao, tx_id),
 
-  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
+  FOREIGN KEY (id_video_doacao, seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
@@ -244,10 +244,10 @@ CREATE TABLE CartaoCredito (
   num VARCHAR(24),
   bandeira VARCHAR(32),
 
-  PRIMARY KEY (id_video_doacao,seq_doacao, num),
+  PRIMARY KEY (id_video_doacao, seq_doacao, num),
   UNIQUE (num, bandeira),
 
-  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
+  FOREIGN KEY (id_video_doacao, seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
@@ -256,9 +256,9 @@ CREATE TABLE Paypal (
   seq_doacao INT,
   id INT,
 
-  PRIMARY KEY (id_video_doacao,seq_doacao, id),
+  PRIMARY KEY (id_video_doacao, seq_doacao, id),
 
-  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
+  FOREIGN KEY (id_video_doacao, seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
@@ -267,8 +267,8 @@ CREATE TABLE MecPlat (
   seq_doacao INT,
   seq INT,
 
-  PRIMARY KEY (id_video_doacao,seq_doacao, seq),
+  PRIMARY KEY (id_video_doacao, seq_doacao, seq),
 
-  FOREIGN KEY (id_video_doacao,seq_doacao) REFERENCES Doacao (id_video, num_seq)
+  FOREIGN KEY (id_video_doacao, seq_doacao) REFERENCES Doacao (id_video, num_seq)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
