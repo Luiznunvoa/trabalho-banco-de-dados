@@ -157,7 +157,7 @@ CREATE TABLE Inscricao (
 );
 
 CREATE TABLE Video (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, -- única chave primária?
   id_canal INT NOT NULL,
   titulo VARCHAR(255),
   dataH DATE,
@@ -192,8 +192,7 @@ CREATE TABLE Comentario (
   dataH TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   coment_on BOOLEAN NOT NULL DEFAULT FALSE,
 
-  -- id_usuario deve fazer parte da chave primária?
-  PRIMARY KEY (id_video, num_seq, id_usuario),
+  PRIMARY KEY (id_video, num_seq, id_usuario), -- id_usuario parte chave primária?
 
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
