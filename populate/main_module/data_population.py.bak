@@ -38,6 +38,7 @@ def populate_all_data(session: Session, fake: Faker, config: DataConfig) -> dict
     Returns:
         Dicionário com estatísticas de tempo por nível
     """
+
     inserter = BatchInserter(session, fake)
     timings = {}
     inicio_total = time.time()
