@@ -14,11 +14,12 @@ services:
       - "${POSTGRES_PORT}:5432"
 
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
-      - ./allViews.sql:/docker-entrypoint-initdb.d/02-allViews.sql
-      - ./allFunctions.sql:/docker-entrypoint-initdb.d/03-allFunctions.sql
-      - ./allIndexes.sql:/docker-entrypoint-initdb.d/04-allIndexes.sql
-      
+      - ./schema/tabelas.sql:/docker-entrypoint-initdb.d/01-tabelas.sql
+      - ./schema/views.sql:/docker-entrypoint-initdb.d/02-allViews.sql
+      - ./schema/funcoes.sql:/docker-entrypoint-initdb.d/03-funcoes.sql
+      - ./schema/triggers.sql:/docker-entrypoint-initdb.d/04-triggers.sql
+      - ./schema/indices.sql:/docker-entrypoint-initdb.d/05-indices.sql
+
       - postgres-data:/var/lib/postgresql/data
 
 volumes:
