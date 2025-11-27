@@ -207,7 +207,6 @@ CREATE TABLE Comentario ( -- OK
   coment_on BOOLEAN NOT NULL DEFAULT FALSE,
 
   PRIMARY KEY (id_video, num_seq, id_usuario),
-  UNIQUE (id_video, num_seq),
 
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
