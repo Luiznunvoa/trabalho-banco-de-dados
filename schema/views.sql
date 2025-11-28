@@ -1,5 +1,10 @@
 SET SEARCH_PATH TO core;
 
+----->>>>> COM A NOVA POLÍTICA DE USUÁRIO É NECESSÁRIO
+-- REPENSAR A FORMA Q É FEITA A VIEW
+-- exemplo vai filtrar só os ativos?
+-- poderia ter uma view só para os inativos?
+-- mistura os 2 na view e conta separado?
 
 CREATE OR REPLACE VIEW vw_faturamento_doacao AS
 SELECT
@@ -68,6 +73,15 @@ LEFT JOIN vw_faturamento_inscricao i ON c.id = i.id_canal
 LEFT JOIN vw_faturamento_doacao d ON c.id = d.id_canal
 WITH DATA;
 
+-- Agendar Refresh a cada X minutos --
+CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- Indice para melhorar performa da view
--- CREATE UNIQUE INDEX idx_mv_fat_total_id ON vw_faturamento_total (id_canal);
+-- O formato é padrão CRON: minuto, hora, dia, mes, dia_semana
+SELECT cron.schedule(
+  'refresh_faturamento_5min', -- Nome da tarefa (opcional)
+  '*/5 * * * *',                -- A cada 5 minutos
+  'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
+);
+
+-- verificação do cron
+SELECT * FROM cron.job;

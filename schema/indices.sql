@@ -1,5 +1,13 @@
 SET SEARCH_PATH TO core;
 
+--->>>>> verificar quando tiver muitos dados inseridos no banco
+
+-- Indices do Vinicius --
+
+    -- Necessário para realizer o refresh Concurrently
+CREATE UNIQUE INDEX idx_mv_fat_total_id ON vw_faturamento_total (id_canal);
+
+
 -- -- Índices do Luiz --
 
 -- Índice 1: Otimiza JOINs da tabela Patrocinio com Canal

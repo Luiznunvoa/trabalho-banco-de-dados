@@ -1,5 +1,6 @@
 SET SEARCH_PATH TO core;
 
+----> MODIFICAR COM A NOVA VIEW MATERIALIZADA E PENSAR NOS USER INATIVOS
 
 /* 1. Identificar quais são os canais patrocinados e os valores de patrocínio pagos por empresa.
    SE UMA EMPRESA FEZ MAIS DE UM PATROCINIO PARA UM CANAL, PRECISA AGRUPAR?

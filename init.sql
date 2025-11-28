@@ -46,6 +46,10 @@ CREATE TABLE Plataforma ( -- OK
 
 -- Criamos ID artificial pois nick é varchar, o que dificulta a integração com outras tabelas e
 -- é menos eficiente de trabalhar
+-- Uso de data_exclusao para conseguir manter dados mesmo após o delete do usuario
+-- isso possibilita uma análise de negócios mais profunda e
+-- a possibilidade de reativar um usuário
+------>>>>> essa possibilidade gera um pequeno erro na clausula unique (verificar)
 CREATE TABLE Usuario ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nick VARCHAR(100) NOT NULL,
@@ -54,6 +58,7 @@ CREATE TABLE Usuario ( -- OK
   telefone VARCHAR(20) NOT NULL,
   pais_residencia INTEGER,
   end_postal VARCHAR(50),
+  data_exclusao TIMESTAMP DEFAULT NULL,
 
   UNIQUE (nick),
   UNIQUE (email),
@@ -62,6 +67,7 @@ CREATE TABLE Usuario ( -- OK
   ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+-- se usuario inativo precisa salvar plataforma dele?
 CREATE TABLE PlataformaUsuario ( -- OK
   nro_plataforma INTEGER NOT NULL,
   id_usuario INTEGER NOT NULL,
@@ -76,6 +82,7 @@ CREATE TABLE PlataformaUsuario ( -- OK
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+-- mesma coisa de cima
 CREATE TABLE StreamerPais ( -- OK
   id_usuario INTEGER NOT NULL,
   ddi_pais INTEGER NOT NULL,
@@ -155,6 +162,7 @@ CREATE TABLE NivelCanal ( -- OK
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- Mesmo problema de id_usuario
 CREATE TABLE Inscricao (
   id_nivel INT,
   id_membro INT,
@@ -174,9 +182,9 @@ CREATE TABLE Video ( -- OK
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_canal INT NOT NULL,
   titulo VARCHAR(255),
-  dataH DATE,
+  dataH TIMESTAMP,
   tema VARCHAR(64),
-  duracao TIME,
+  duracao INTERVAL, -- para vídeos>24h
   visu_simult INT,
   visu_total INT,
 
@@ -186,6 +194,7 @@ CREATE TABLE Video ( -- OK
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- Mesmo problema de id_usuario
 CREATE TABLE Participa ( -- OK
   id_video BIGINT,
   id_streamer INT,
@@ -198,6 +207,7 @@ CREATE TABLE Participa ( -- OK
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- Mesmo problema de id_usuario
 CREATE TABLE Comentario ( -- OK
   id_video BIGINT NOT NULL,
   num_seq INT NOT NULL,
@@ -211,7 +221,9 @@ CREATE TABLE Comentario ( -- OK
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
-  ON DELETE CASCADE ON UPDATE CASCADE
+  ON UPDATE CASCADE --ON DELETE CASCADE
+    -- se estamos guardando dados de usuário para analise, é preciso guardar comentário
+    -- deveria ser ON DELETE RESTRICT?
 );
 
 CREATE TABLE Doacao (
