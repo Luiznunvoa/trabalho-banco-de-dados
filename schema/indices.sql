@@ -4,7 +4,7 @@ SET SEARCH_PATH TO core;
 
 -- Indices do Vinicius --
 
-    -- Necessário para realizer o refresh Concurrently
+-- Necessário para realizer o refresh Concurrently
 CREATE UNIQUE INDEX idx_mv_fat_total_id ON vw_faturamento_total (id_canal);
 
 

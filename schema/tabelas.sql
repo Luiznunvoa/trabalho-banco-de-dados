@@ -3,6 +3,8 @@ SET SEARCH_PATH TO core;
 
 -- Habilita a extensão btree_gist necessária para EXCLUSION CONSTRAINTS com tipos não-geométricos
 CREATE EXTENSION IF NOT EXISTS btree_gist;
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
 
 CREATE TYPE TIPO_CANAL AS ENUM ('privado', 'publico', 'misto');
 
@@ -54,12 +56,13 @@ CREATE TABLE Plataforma (
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- ID Artificial 'id': Essencial pois nick (VARCHAR) é mutável e inadequado como PK.
--- Usuários frequentemente mudam nicknames, causaria cascata de UPDATEs em 8+ tabelas
--- (Canal, Comentario, Doacao, Inscricao, Participa, PlataformaUsuario, StreamerPais).
--- INT ocupa 4 bytes vs até 100 do VARCHAR, melhorando drasticamente performance de JOINs.
--- Facilita integração com sistemas externos que usam IDs numéricos.
-CREATE TABLE Usuario (
+-- Criamos ID artificial pois nick é varchar, o que dificulta a integração com outras tabelas e
+-- é menos eficiente de trabalhar
+-- Uso de data_exclusao para conseguir manter dados mesmo após o delete do usuario
+-- isso possibilita uma análise de negócios mais profunda e
+-- a possibilidade de reativar um usuário
+------>>>>> essa possibilidade gera um pequeno erro na clausula unique (verificar)
+CREATE TABLE Usuario ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nick VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL,
@@ -67,7 +70,7 @@ CREATE TABLE Usuario (
   telefone VARCHAR(20) NOT NULL,
   pais_residencia INTEGER,
   end_postal VARCHAR(50),
-  active BOOLEAN NOT NULL DEFAULT True,
+  data_exclusao TIMESTAMP DEFAULT NULL,
 
   UNIQUE (nick),
   UNIQUE (email),
@@ -76,6 +79,7 @@ CREATE TABLE Usuario (
   ON UPDATE CASCADE ON DELETE SET NULL
 );
 
+-- se usuario inativo precisa salvar plataforma dele? SIM!
 CREATE TABLE PlataformaUsuario (
   nro_plataforma INTEGER NOT NULL,
   id_usuario INTEGER NOT NULL,
@@ -87,9 +91,11 @@ CREATE TABLE PlataformaUsuario (
   FOREIGN KEY (nro_plataforma) REFERENCES Plataforma (nro)
   ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
-  ON UPDATE CASCADE ON DELETE CASCADE
+  ON UPDATE RESTRICT ON DELETE CASCADE
 );
 
+
+-- mesma coisa de cima. SIM TBM!
 CREATE TABLE StreamerPais (
   id_usuario INTEGER NOT NULL,
   ddi_pais INTEGER NOT NULL,
@@ -99,7 +105,7 @@ CREATE TABLE StreamerPais (
   UNIQUE (nro_passaporte),
 
   FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
-  ON UPDATE CASCADE ON DELETE CASCADE,
+  ON UPDATE RESTRICT ON DELETE CASCADE,
   FOREIGN KEY (ddi_pais) REFERENCES Pais (ddi)
   ON UPDATE CASCADE ON DELETE CASCADE
 );
@@ -138,7 +144,7 @@ CREATE TABLE Canal (
   FOREIGN KEY (nro_plataforma) REFERENCES Plataforma (nro)
   ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (id_streamer) REFERENCES Usuario (id)
-  ON DELETE CASCADE ON UPDATE CASCADE
+  ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE TABLE Patrocinio (
@@ -179,24 +185,23 @@ CREATE TABLE Inscricao (
   PRIMARY KEY (id_nivel, id_membro),
 
   FOREIGN KEY (id_membro) REFERENCES Usuario (id)
-  ON DELETE CASCADE ON UPDATE CASCADE,
+  ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (id_nivel) REFERENCES NivelCanal (id)
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ID Artificial 'id': BIGINT escolhido pois vídeos são entidades de altíssimo volume.
--- Alternativa seria chave composta (id_canal, titulo, dataH), ocupando ~264 bytes vs 8 do BIGINT.
--- Simplifica drasticamente relacionamentos em Participa, Comentario, Doacao e subtipos de pagamento.
--- Título pode ser alterado e não é único (mesmo título em datas diferentes).
--- BIGINT suporta ~9.2 quintilhões de vídeos, essencial dado que YouTube recebe 720k horas/dia.
--- Mesma ocupação de memória (8 bytes) que chave composta, mas com performance muito superior.
-CREATE TABLE Video (
+-- Criamos ID artificial pois "titulo" é varchar e "datah" é DATE
+-- que seria bastante ineficiente para trabalhar
+-- Resolvemos criar um id único sendo BIGINT pois, uma chave primária composta
+-- [id_canal,id_video] ocupa 8 bytes, o mesmo tamanho do BIGINT
+-- porém a chave composta única é melhor de visualizar e integrar com outras tabelas
+CREATE TABLE Video ( -- OK
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_canal INT NOT NULL,
   titulo VARCHAR(255),
-  dataH DATE,
+  dataH TIMESTAMP,
   tema VARCHAR(64),
-  duracao TIME,
+  duracao INTERVAL, -- para vídeos>24h
   visu_simult INT,
   visu_total INT,
 
@@ -213,7 +218,7 @@ CREATE TABLE Participa (
   PRIMARY KEY (id_video, id_streamer),
 
   FOREIGN KEY (id_streamer) REFERENCES Usuario (id)
-  ON DELETE CASCADE ON UPDATE CASCADE,
+  ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -224,14 +229,14 @@ CREATE TABLE Comentario (
   id_usuario INT NOT NULL,
   texto TEXT NOT NULL,
   dataH TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  coment_on BOOLEAN NOT NULL DEFAULT False,
+  coment_on BOOLEAN NOT NULL DEFAULT FALSE,
 
   PRIMARY KEY (id_video, num_seq, id_usuario),
 
   FOREIGN KEY (id_video) REFERENCES Video (id)
   ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
-  ON DELETE CASCADE ON UPDATE CASCADE
+  ON UPDATE CASCADE ON DELETE RESTRICT -- Não pode deletar usuários com comentários?
 );
 
 -- RESTRIÇÃO DE MÉTODO DE PAGAMENTO ÚNICO:
