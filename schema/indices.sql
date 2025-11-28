@@ -12,7 +12,7 @@ CREATE UNIQUE INDEX idx_mv_fat_total_id ON vw_faturamento_total (id_canal);
 
 -- Índice 1: Otimiza JOINs da tabela Patrocinio com Canal
 -- Usado nas consultas 1, 5 e 8 que fazem JOIN entre patrocinio e canal
--- Melhora performance ao buscar patrocínios por canal (id_canal é foreign key frequentemente usada em JOINs)
+-- Melhora performance ao buscar patrocínios por canal
 CREATE INDEX idx_patrocinio_id_canal ON Patrocinio (id_canal);
 
 -- Índice 2: Otimiza consulta 2 que agrupa inscrições por usuário
@@ -22,7 +22,7 @@ CREATE INDEX idx_inscricao_id_membro ON Inscricao (id_membro);
 
 -- Índice 3: Otimiza filtragem de doações concluídas
 -- Usado nas consultas 3, 4 e views de faturamento que filtram por status_pagamento = 'CONCLUIDO'
--- Como há apenas 3 valores possíveis (PENDENTE, CONCLUIDO, FALHOU), o índice é eficiente para seletividade
+-- Como há apenas 3 valores possíveis, o índice é eficiente para seletividade
 CREATE INDEX idx_doacao_status_pagamento ON Doacao (status_pagamento);
 
 -- Índice 4: Índice composto para otimizar consulta 4 (doações de comentários lidos)

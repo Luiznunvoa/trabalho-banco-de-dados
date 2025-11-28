@@ -26,8 +26,6 @@ AS $$
 
 $$ LANGUAGE sql;
 
-SELECT * FROM CANAISPATROCINADOSEMPRESA(1);
-
 
 /*2. Descobrir de quantos canais cada usuário é membro e a soma do valor desembolsado por
 usuário por mês.
@@ -59,9 +57,6 @@ AS $$
 
 
 $$ LANGUAGE sql;
-
-SELECT * FROM GASTOMEMBRESIA(3);
-
 
 /* 3. Listar e ordenar os canais que já receberam doações e a soma dos valores recebidos em
 doação.
@@ -185,7 +180,7 @@ AS $$
 $$ LANGUAGE sql;
 
 
---8. Listar os k canais que mais faturam considerando as três fontes de receita: patrocínio, membros inscritos e doações.
+--8. Listar os k canais que mais faturam considerando as três fontes de receita
 
 CREATE OR REPLACE FUNCTION MAIORFATURAMENTO(k int DEFAULT NULL)
 RETURNS TABLE (
