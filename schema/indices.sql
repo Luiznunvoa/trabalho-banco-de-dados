@@ -1,3 +1,5 @@
+SET SEARCH_PATH TO core;
+
 -- -- Índices do Luiz --
 
 -- Índice 1: Otimiza JOINs da tabela Patrocinio com Canal

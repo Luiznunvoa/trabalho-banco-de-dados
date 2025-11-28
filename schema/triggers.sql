@@ -1,3 +1,5 @@
+SET SEARCH_PATH TO core;
+
 /*
   CRIAÇÃO DE SCHEDULE PARA ATUALIZAR VIEW MATERIALIZADA A CADA 5 MIN
 */
@@ -7,13 +9,23 @@
 -- JUSTIFICATIVA: Necessidade de atualizar o pagamento de maneira mais eficiente do que
 -- uma atualização a cada insert
 CREATE UNIQUE INDEX idx_vw_fat_total_id_canal
-ON vw_faturamento_total (id_canal);
+ON core.vw_faturamento_total (id_canal);
 
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+/*
+  NOTA: pg_cron está comentado pois requer instalação manual no PostgreSQL Alpine.
+  Para habilitar:
+  1. Use uma imagem com pg_cron (ex: citusdata/pg_cron) ou
+  2. Instale pg_cron manualmente na imagem Alpine
+  
+  Por enquanto, a view materializada pode ser atualizada manualmente com:
+  REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total;
+*/
+
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- O formato é padrão CRON: minuto, hora, dia, mes, dia_semana
-SELECT cron.schedule(
-  'refresh_faturamento_5min', -- Nome da tarefa (opcional)
-  '*/5 * * * *',                -- A cada 5 minutos
-  'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
-);
+-- SELECT cron.schedule(
+--   'refresh_faturamento_5min', -- Nome da tarefa (opcional)
+--   '*/5 * * * *',                -- A cada 5 minutos
+--   'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
+-- );
