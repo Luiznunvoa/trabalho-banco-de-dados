@@ -1,10 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS core;
 SET SEARCH_PATH TO core;
 
--- Habilita a extensão btree_gist necessária para EXCLUSION CONSTRAINTS com tipos não-geométricos
-CREATE EXTENSION IF NOT EXISTS btree_gist;
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
+-- As extensões btree_gist e pg_cron são instaladas em 00-extensions.sql
 
 CREATE TYPE TIPO_CANAL AS ENUM ('privado', 'publico', 'misto');
 
@@ -79,7 +76,6 @@ CREATE TABLE Usuario ( -- OK
   ON UPDATE CASCADE ON DELETE SET NULL
 );
 
--- se usuario inativo precisa salvar plataforma dele? SIM!
 CREATE TABLE PlataformaUsuario (
   nro_plataforma INTEGER NOT NULL,
   id_usuario INTEGER NOT NULL,
@@ -94,8 +90,6 @@ CREATE TABLE PlataformaUsuario (
   ON UPDATE RESTRICT ON DELETE CASCADE
 );
 
-
--- mesma coisa de cima. SIM TBM!
 CREATE TABLE StreamerPais (
   id_usuario INTEGER NOT NULL,
   ddi_pais INTEGER NOT NULL,

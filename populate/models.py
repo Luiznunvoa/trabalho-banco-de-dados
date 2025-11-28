@@ -1,7 +1,7 @@
 from sqlalchemy import (
     create_engine, Column, Integer, String, Numeric, Date, Time, 
     Boolean, Text, ForeignKey, BigInteger, Enum, DECIMAL, TIMESTAMP, UniqueConstraint,
-    ForeignKeyConstraint, text
+    ForeignKeyConstraint, text, Interval
 )
 from sqlalchemy.orm import declarative_base, relationship
 import enum
@@ -100,6 +100,7 @@ class Usuario(Base):
     telefone = Column(String(20), nullable=False)
     pais_residencia = Column(Integer, ForeignKey(f"{SCHEMA}.pais.ddi", onupdate="CASCADE", ondelete="SET NULL"))
     end_postal = Column(String(50))
+    data_exclusao = Column(TIMESTAMP, default=None)
 
 
 class PlataformaUsuario(Base):
@@ -195,9 +196,9 @@ class Video(Base):
 
     id_canal = Column(Integer, ForeignKey(f"{SCHEMA}.canal.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     titulo = Column(String(255))
-    data_h = Column("datah", Date) 
+    data_h = Column("datah", TIMESTAMP) 
     tema = Column(String(64))
-    duracao = Column(Time)
+    duracao = Column(Interval)
     visu_simult = Column(Integer)
     visu_total = Column(Integer)
 
@@ -232,12 +233,13 @@ class Doacao(Base):
 
     id_video = Column(BigInteger, primary_key=True)
     num_seq = Column(Integer, primary_key=True)
+    id_usuario = Column(Integer, primary_key=True)
     
     valor = Column(DECIMAL(10, 2), nullable=False)
-    status_pagamento = Column(Enum(StatusPagamento, name='StatusPagamento', schema=SCHEMA, create_type=False), nullable=False, default=StatusPagamento.PENDENTE)
+    status_pagamento = Column(Enum(StatusPagamento, name='statuspagamento', schema=SCHEMA, create_type=False), nullable=False, default=StatusPagamento.PENDENTE)
     
     __table_args__ = (
-        ForeignKeyConstraint(['id_video', 'num_seq'], [f"{SCHEMA}.comentario.id_video", f"{SCHEMA}.comentario.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKeyConstraint(['id_video', 'num_seq', 'id_usuario'], [f"{SCHEMA}.comentario.id_video", f"{SCHEMA}.comentario.num_seq", f"{SCHEMA}.comentario.id_usuario"], onupdate="CASCADE", ondelete="CASCADE"),
         {'schema': SCHEMA}
     )
 
@@ -248,9 +250,10 @@ class Bitcoin(Base):
     id_video_doacao = Column(BigInteger, primary_key=True)
     seq_doacao = Column(Integer, primary_key=True)
     tx_id = Column(String(64), primary_key=True)
+    id_usuario = Column(Integer, nullable=False, primary_key=True)
     
     __table_args__ = (
-        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao', 'id_usuario'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq", f"{SCHEMA}.doacao.id_usuario"], onupdate="CASCADE", ondelete="CASCADE"),
         {'schema': SCHEMA}
     )
 
@@ -261,10 +264,11 @@ class CartaoCredito(Base):
     id_video_doacao = Column(BigInteger, primary_key=True)
     seq_doacao = Column(Integer, primary_key=True)
     num = Column(String(24), primary_key=True)
+    id_usuario = Column(Integer, nullable=False, primary_key=True)
     bandeira = Column(String(32))
     
     __table_args__ = (
-        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao', 'id_usuario'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq", f"{SCHEMA}.doacao.id_usuario"], onupdate="CASCADE", ondelete="CASCADE"),
         UniqueConstraint("num", "bandeira"),
         {'schema': SCHEMA}
     )
@@ -276,9 +280,10 @@ class Paypal(Base):
     id_video_doacao = Column(BigInteger, primary_key=True)
     seq_doacao = Column(Integer, primary_key=True)
     id = Column(Integer, primary_key=True)
+    id_usuario = Column(Integer, nullable=False, primary_key=True)
     
     __table_args__ = (
-        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao', 'id_usuario'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq", f"{SCHEMA}.doacao.id_usuario"], onupdate="CASCADE", ondelete="CASCADE"),
         {'schema': SCHEMA}
     )
 
@@ -289,8 +294,9 @@ class MecPlat(Base):
     id_video_doacao = Column(BigInteger, primary_key=True)
     seq_doacao = Column(Integer, primary_key=True)
     seq = Column(Integer, primary_key=True)
+    id_usuario = Column(Integer, nullable=False, primary_key=True)
     
     __table_args__ = (
-        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq"], onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKeyConstraint(['id_video_doacao', 'seq_doacao', 'id_usuario'], [f"{SCHEMA}.doacao.id_video", f"{SCHEMA}.doacao.num_seq", f"{SCHEMA}.doacao.id_usuario"], onupdate="CASCADE", ondelete="CASCADE"),
         {'schema': SCHEMA}
     )

@@ -14,6 +14,7 @@ def generate_doacoes(fake: Faker, comentarios: list[Comentario]) -> list[Doacao]
             Doacao(
                 id_video=comentario.id_video,
                 num_seq=comentario.num_seq,
+                id_usuario=comentario.id_usuario,
                 valor=fake.pydecimal(left_digits=4, right_digits=2, positive=True),
                 status_pagamento=random.choice(list(StatusPagamento))
             )
@@ -39,6 +40,7 @@ def generate_pagamentos(fake: Faker, doacoes: list[Doacao]) -> tuple[list[Bitcoi
         bitcoins.append(Bitcoin(
             id_video_doacao=doacao.id_video,
             seq_doacao=doacao.num_seq,
+            id_usuario=doacao.id_usuario,
             tx_id=fake.sha256()
         ))
 
@@ -57,6 +59,7 @@ def generate_pagamentos(fake: Faker, doacoes: list[Doacao]) -> tuple[list[Bitcoi
             CartaoCredito(
                 id_video_doacao=doacao.id_video,
                 seq_doacao=doacao.num_seq,
+                id_usuario=doacao.id_usuario,
                 num=card_num_clean,
                 bandeira=fake.credit_card_provider()
             )
@@ -66,6 +69,7 @@ def generate_pagamentos(fake: Faker, doacoes: list[Doacao]) -> tuple[list[Bitcoi
         paypals.append(Paypal(
             id_video_doacao=doacao.id_video,
             seq_doacao=doacao.num_seq,
+            id_usuario=doacao.id_usuario,
             id=i
         ))
 
@@ -73,6 +77,7 @@ def generate_pagamentos(fake: Faker, doacoes: list[Doacao]) -> tuple[list[Bitcoi
         mec_plats.append(MecPlat(
             id_video_doacao=doacao.id_video,
             seq_doacao=doacao.num_seq,
+            id_usuario=doacao.id_usuario,
             seq=i
         ))
 

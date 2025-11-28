@@ -3,6 +3,7 @@
 from faker import Faker
 from models import Video, Participa, Canal, Usuario
 import random
+from datetime import timedelta
 
 
 def generate_videos(fake: Faker, count: int, canais: list[Canal], offset: int = 0) -> list[Video]:
@@ -19,9 +20,9 @@ def generate_videos(fake: Faker, count: int, canais: list[Canal], offset: int = 
             Video(
                 id_canal=random.choice(canais).id,
                 titulo=f"{fake.sentence(nb_words=4)} {unique_id}",
-                data_h=fake.date_object(),
+                data_h=fake.date_time_this_year(),
                 tema=fake.word(),
-                duracao=fake.time_object(),
+                duracao=timedelta(hours=random.randint(0, 4), minutes=random.randint(0, 59), seconds=random.randint(0, 59)),
                 visu_simult=random.randint(0, 10000),
                 visu_total=random.randint(10000, 1000000)
             )
