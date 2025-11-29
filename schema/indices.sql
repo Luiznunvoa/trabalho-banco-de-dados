@@ -28,5 +28,4 @@ CREATE INDEX idx_doacao_status_pagamento ON Doacao (status_pagamento);
 -- Índice 4: Índice composto para otimizar consulta 4 (doações de comentários lidos)
 -- A consulta 4 filtra comentários onde coment_on = true e depois faz JOIN com doacao
 -- Este índice composto permite buscar rapidamente comentários lidos e seu vídeo associado
-CREATE INDEX idx_comentario_coment_on_video ON Comentario (coment_on, id_video) WHERE coment_on
-= true;
+CREATE INDEX idx_comentario_coment_on_video ON Comentario (coment_on, id_video) WHERE coment_on = true;
