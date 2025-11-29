@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:17
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trabalho-bd-postgres:17-pgcron
     container_name: trabalho-bd 
     
     restart: always
