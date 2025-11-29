@@ -30,7 +30,7 @@ def main():
     """Função principal do script."""
     
     # Determina qual preset usar
-    preset_name = "TESTE_PERFORMANCE"  # Padrão
+    preset_name = "DESENVOLVIMENTO_RAPIDO"  # Padrão
     
     if len(sys.argv) > 1:
         if sys.argv[1] in ['--help', '-h', 'help']:

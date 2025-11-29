@@ -90,13 +90,15 @@ WHERE
   u.data_exclusao IS NULL
 WITH DATA;
 
+-- NOTA: pg_cron não está disponível na imagem postgres:17-alpine
+-- Para usar cron.schedule, instale pg_cron ou use imagem postgres:17 (não-alpine)
 -- O formato é padrão CRON: minuto, hora, dia, mes, dia_semana
-SELECT
-  cron.schedule(
-    'refresh_faturamento_5min', -- Nome da tarefa (opcional)
-    '*/5 * * * *',
-    'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
-  );
+-- SELECT
+--   cron.schedule(
+--     'refresh_faturamento_5min', -- Nome da tarefa (opcional)
+--     '*/5 * * * *',
+--     'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
+--   );
 
 -- verificação do cron
 -- SELECT * FROM cron.job;

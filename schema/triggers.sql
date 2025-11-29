@@ -7,17 +7,21 @@ SET SEARCH_PATH TO core;
 CREATE UNIQUE INDEX idx_vw_fat_total_id_canal
 ON core.vw_faturamento_total (id_canal);
 
+-- NOTA: pg_cron não está disponível na imagem postgres:17-alpine
+-- Para usar cron.schedule, instale pg_cron ou use imagem postgres:17 (não-alpine)
 -- O formato é padrão CRON: minuto, hora, dia, mes, dia_semana
-SELECT cron.schedule(
-  'refresh_faturamento_5min', -- Nome da tarefa (opcional)
-  '*/5 * * * *',                -- A cada 5 minutos
-  'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
-);
+-- SELECT cron.schedule(
+--   'refresh_faturamento_5min', -- Nome da tarefa (opcional)
+--   '*/5 * * * *',                -- A cada 5 minutos
+--   'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
+-- );
 
-CREATE TRIGGER trg_safety_usuario_delete
-BEFORE DELETE ON Usuario
-FOR EACH ROW
-EXECUTE FUNCTION fn_bloquear_delete_usuario();
+-- NOTA: A função fn_bloquear_delete_usuario() não foi criada em funcoes.sql
+-- Este trigger está comentado até que a função seja implementada
+-- CREATE TRIGGER trg_safety_usuario_delete
+-- BEFORE DELETE ON Usuario
+-- FOR EACH ROW
+-- EXECUTE FUNCTION fn_bloquear_delete_usuario();
 
 /*
   TRIGGER PAR GARANTIR SOFT DELETE DE USUÁRIO
