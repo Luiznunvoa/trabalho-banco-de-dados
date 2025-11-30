@@ -1,5 +1,5 @@
-CREATE SCHEMA IF NOT EXISTS core2;
-SET SEARCH_PATH TO core2;
+CREATE SCHEMA IF NOT EXISTS core;
+SET SEARCH_PATH TO core;
 
 -- As extensões btree_gist e pg_cron são instaladas em 00-extensions.sql
 

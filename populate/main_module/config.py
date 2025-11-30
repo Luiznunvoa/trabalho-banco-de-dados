@@ -130,7 +130,7 @@ class DataConfig:
 PRESETS: Dict[str, DataConfig] = {
     "DESENVOLVIMENTO_RAPIDO": DataConfig(
         preset_name="DESENVOLVIMENTO_RAPIDO",
-        n_usuarios=300_000,
+        n_usuarios=10_000,
         n_empresas=1_000,
         n_plataformas=10,
         pct_streamers=0.5,
