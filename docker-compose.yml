@@ -21,7 +21,7 @@ services:
       - ./schema/tabelas.sql:/docker-entrypoint-initdb.d/01-tabelas.sql
       - ./schema/views.sql:/docker-entrypoint-initdb.d/02-allViews.sql
       - ./schema/funcoes.sql:/docker-entrypoint-initdb.d/03-funcoes.sql
-      - ./schema/triggers.sql:/docker-entrypoint-initdb.d/04-triggers.sql
+      - ./schema/triggers-schedules.sql:/docker-entrypoint-initdb.d/04-triggers-schedules.sql
       - ./schema/indices.sql:/docker-entrypoint-initdb.d/05-indices.sql
 
       - postgres-data:/var/lib/postgresql/data

@@ -122,26 +122,3 @@ LEFT JOIN vw_faturamento_doacao AS d ON c.id = d.id_canal
 WHERE
   u.data_exclusao IS NULL
 WITH DATA;
-
--- AGENDAMENTO: Refresh Automático da Materialized View
--- JUSTIFICATIVA:
--- Agenda atualização automática da view materializada a cada 5 minutos usando
--- pg_cron. Este intervalo balanceia:
--- - Atualidade dos dados: Informações razoavelmente recentes para dashboards
--- - Performance: Evita sobrecarga de refresh muito frequente
--- - CONCURRENTLY: Permite consultas durante o refresh, sem bloquear leituras
--- 
--- REQUISITOS:
--- - Extensão pg_cron deve estar instalada e configurada
--- - Para REFRESH CONCURRENTLY funcionar, é necessário criar índice único
---   na view materializada (recomendado: CREATE UNIQUE INDEX ON vw_faturamento_total(id_canal))
--- O formato é padrão CRON: minuto, hora, dia, mes, dia_semana
-SELECT
-  cron.schedule(
-    'refresh_faturamento_5min', -- Nome da tarefa (opcional)
-    '*/5 * * * *',
-    'REFRESH MATERIALIZED VIEW CONCURRENTLY core.vw_faturamento_total'
-  );
-
--- verificação do cron
--- SELECT * FROM cron.job;

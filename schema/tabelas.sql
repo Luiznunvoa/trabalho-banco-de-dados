@@ -120,13 +120,18 @@ CREATE TABLE EmpresaPais (
 -- Patrocinio, NivelCanal - usar chave composta (nome, nro_plataforma) seria ineficiente,
 -- ocupando ~259 bytes vs 4 bytes do INT. Melhora significativa em performance de JOINs e índices.
 -- Capacidade: ~2.1 bilhões de canais, suficiente considerando YouTube com ~113.9 milhões.
+-- 
+-- COLUNAS DESNORMALIZADAS (atualizadas por procedures agendadas):
+-- - qtd_visualizacoes: Soma total de visualizações de todos os vídeos (atualizado a cada 1h)
+-- - max_visu_simult: Pico máximo de viewers simultâneos já alcançado (atualizado a cada 30min)
 CREATE TABLE Canal (
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_streamer INT NOT NULL,
   nro_plataforma INT NOT NULL,
   nome VARCHAR(255) NOT NULL,
   tipo TIPO_CANAL NOT NULL,
-  qtd_visualizacoes INT NOT NULL,
+  qtd_visualizacoes INT NOT NULL DEFAULT 0,
+  visu_simult INT NOT NULL DEFAULT 0,
   data_criacao DATE NOT NULL,
   descricao VARCHAR(255),
 
