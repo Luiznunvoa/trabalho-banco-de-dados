@@ -2,213 +2,328 @@ SET SEARCH_PATH TO core;
 
 /* 1. Identificar quais são os canais patrocinados e os valores de patrocínio pagos por empresa. */
 
-CREATE OR REPLACE FUNCTION CANAISPATROCINADOSEMPRESA(id_emp int DEFAULT NULL)
+-- 1. Versão para buscar TUDO (sem parâmetros)
+CREATE OR REPLACE FUNCTION CANAISPATROCINADOSEMPRESA()
 RETURNS TABLE (
-  nome_canal varchar(255),
-  valor_patrocinio float,
-  nome_empresa varchar(255)
-)
-AS $$
-	SELECT
-	  c.nome nome_canal,
-	  p.valor valor_patrocinio,
-	  e.nome nome_empresa
-	FROM empresa e
-		JOIN patrocinio p ON p.nro_empresa = e.nro
-		JOIN canal c ON p.id_canal = c.id
-		JOIN usuario u ON c.id_streamer = u.id
-	WHERE (id_emp is null or id_emp = e.nro)
-	  AND u.data_exclusao IS NULL
-	ORDER BY c.nome ASC;
-
-$$ LANGUAGE sql;
-
-
-CREATE OR REPLACE FUNCTION CANAISPATROCINADOSEMPRESA(nome_empresa varchar DEFAULT NULL)
-RETURNS TABLE (
-  nome_canal varchar(255),
-  valor_patrocinio float,
-  nome_empresa varchar(255)
-)
-AS $$
+	nome_canal varchar,
+	valor_patrocinio float,
+	nome_empresa varchar
+) AS $$
     SELECT
-      c.nome nome_canal,
-      p.valor valor_patrocinio,
-      e.nome nome_empresa
+      	c.nome,
+		p.valor,
+		e.nome
     FROM empresa e
         JOIN patrocinio p ON p.nro_empresa = e.nro
         JOIN canal c ON p.id_canal = c.id
-        JOIN usuario u ON c.id_streamer = u.id -- Correção de soft delete (baseada na nossa conversa)
-    WHERE (nome_empresa is null or nome_empresa = e.nome) and u.data_exclusao is null
+        JOIN usuario u ON c.id_streamer = u.id
+    WHERE u.data_exclusao IS NULL
     ORDER BY c.nome ASC;
 
 $$ LANGUAGE sql;
 
+
+
+-- 2. Versão para buscar por ID (recebe INT)
+CREATE OR REPLACE FUNCTION CANAISPATROCINADOSEMPRESA(p_id int)
+RETURNS TABLE (
+	nome_canal varchar,
+	valor_patrocinio float,
+	nome_empresa varchar) 
+AS $$
+    SELECT
+      	c.nome,
+		p.valor,
+		e.nome
+    FROM empresa e
+        JOIN patrocinio p ON p.nro_empresa = e.nro
+        JOIN canal c ON p.id_canal = c.id
+        JOIN usuario u ON c.id_streamer = u.id
+    WHERE e.nro = p_id
+      AND u.data_exclusao IS NULL
+    ORDER BY c.nome ASC;
+
+$$ LANGUAGE sql;
+
+
+
+-- 3. Versão para buscar por NOME (recebe VARCHAR)
+CREATE OR REPLACE FUNCTION CANAISPATROCINADOSEMPRESA(p_nome varchar)
+RETURNS TABLE (
+	nome_canal varchar,
+	valor_patrocinio float,
+	nome_empresa varchar) 
+AS $$
+    SELECT
+      c.nome, p.valor, e.nome
+    FROM empresa e
+        JOIN patrocinio p ON p.nro_empresa = e.nro
+        JOIN canal c ON p.id_canal = c.id
+        JOIN usuario u ON c.id_streamer = u.id
+    WHERE e.nome ILIKE p_nome
+      AND u.data_exclusao IS NULL
+    ORDER BY c.nome ASC;
+$$ LANGUAGE sql;
+
+
+
 /* 2. Descobrir de quantos canais cada usuário é membro e a soma do valor desembolsado por
 usuário por mês. */
 
-CREATE OR REPLACE FUNCTION GASTOMEMBRESIA(id_user int DEFAULT NULL)
+
+-- 1. Versão para buscar TUDO (sem parâmetros)
+CREATE OR REPLACE FUNCTION GASTOMEMBRESIA()
 RETURNS TABLE (
   nick varchar(100),
   qnt_canais_membro int,
   valor_gasto_mes float
 )
 AS $$
-	SELECT
-	  	u.nick AS nome,
-	  	COUNT(nc.id_canal) AS qnt_canais_membro,
-	  	SUM(nc.valor) AS valor_gasto_mes
-	FROM
-	  	usuario AS u
-		INNER JOIN inscricao AS i ON u.id = i.id_membro
-		INNER JOIN nivelcanal AS nc ON i.id_nivel = nc.id
-		INNER JOIN canal AS c ON nc.id_canal = c.id
-		INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
-	WHERE (id_user is null or id_user = u.id)
-	  AND u.data_exclusao IS NULL
-	  AND u_streamer.data_exclusao IS NULL
-	GROUP BY u.nick
-	ORDER BY
-	  valor_gasto_mes DESC,
-	  nome ASC;
-
+    SELECT
+        u.nick AS nome,
+        COUNT(nc.id_canal) AS qnt_canais_membro,
+        SUM(nc.valor) AS valor_gasto_mes
+    FROM
+        usuario AS u
+        INNER JOIN inscricao AS i ON u.id = i.id_membro
+        INNER JOIN nivelcanal AS nc ON i.id_nivel = nc.id
+        INNER JOIN canal AS c ON nc.id_canal = c.id
+        INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+    WHERE u.data_exclusao IS NULL
+      AND u_streamer.data_exclusao IS NULL
+    GROUP BY u.nick
+    ORDER BY
+      valor_gasto_mes DESC,
+      nome ASC;
 $$ LANGUAGE sql;
 
 
-CREATE OR REPLACE FUNCTION GASTOMEMBRESIA(nick_user text)
+
+-- 2. Versão para buscar por ID (recebe INT)
+CREATE OR REPLACE FUNCTION GASTOMEMBRESIA(p_id_user int)
 RETURNS TABLE (
   nick varchar(100),
   qnt_canais_membro int,
   valor_gasto_mes float
 )
 AS $$
-	SELECT
-	    u.nick AS nome,
-	    COUNT(nc.id_canal) AS qnt_canais_membro,
-	    SUM(nc.valor) AS valor_gasto_mes
-	FROM usuario AS u
-	INNER JOIN inscricao AS i ON u.id = i.id_membro
-	INNER JOIN nivelcanal AS nc ON i.id_nivel = nc.id
-	INNER JOIN canal AS c ON nc.id_canal = c.id
-	INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
-	WHERE (nick_user IS NULL OR unaccent(u.nick) ILIKE unaccent('%' || nick_user || '%'))
-	  AND u.data_exclusao IS NULL
-	  AND u_streamer.data_exclusao IS NULL
-	GROUP BY u.nick
-	ORDER BY valor_gasto_mes DESC, nome ASC;
+    SELECT
+        u.nick AS nome,
+        COUNT(nc.id_canal) AS qnt_canais_membro,
+        SUM(nc.valor) AS valor_gasto_mes
+    FROM
+        usuario AS u
+        INNER JOIN inscricao AS i ON u.id = i.id_membro
+        INNER JOIN nivelcanal AS nc ON i.id_nivel = nc.id
+        INNER JOIN canal AS c ON nc.id_canal = c.id
+        INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+    WHERE u.id = p_id_user
+      AND u.data_exclusao IS NULL
+      AND u_streamer.data_exclusao IS NULL
+    GROUP BY u.nick
+    ORDER BY
+      valor_gasto_mes DESC,
+      nome ASC;
 $$ LANGUAGE sql;
+
+
+
+-- 3. Versão para buscar por NOME (recebe VARCHAR)
+CREATE OR REPLACE FUNCTION GASTOMEMBRESIA(p_nick varchar)
+RETURNS TABLE (
+  nick varchar(100),
+  qnt_canais_membro int,
+  valor_gasto_mes float
+)
+AS $$
+    SELECT
+        u.nick AS nome,
+        COUNT(nc.id_canal) AS qnt_canais_membro,
+        SUM(nc.valor) AS valor_gasto_mes
+    FROM
+        usuario AS u
+        INNER JOIN inscricao AS i ON u.id = i.id_membro
+        INNER JOIN nivelcanal AS nc ON i.id_nivel = nc.id
+        INNER JOIN canal AS c ON nc.id_canal = c.id
+        INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+    WHERE u.nick ILIKE p_nick -- ILIKE permite buscar 'User' ou 'user'
+      AND u.data_exclusao IS NULL
+      AND u_streamer.data_exclusao IS NULL
+    GROUP BY u.nick
+    ORDER BY
+      valor_gasto_mes DESC,
+      nome ASC;
+$$ LANGUAGE sql;
+
+
 
 /* 3. Listar e ordenar os canais que já receberam doações e a soma dos valores recebidos em doação. */
 
-CREATE OR REPLACE FUNCTION DOACOESCANAL(id_escolhido int DEFAULT NULL)
+
+
+-- 1. Versão para buscar TUDO (sem parâmetros)
+CREATE OR REPLACE FUNCTION DOACOESCANAL()
 RETURNS TABLE (
-  id_canal int,
   nome_canal varchar(255),
   qtd_doacoes int,
   total_doacao float
 )
 AS $$
-	SELECT
-	  d.id_canal,
-	  c.nome,
-	  d.qtd_doacoes,
-	  d.total_doacao
-	FROM
-	  vw_faturamento_doacao as d
-	  JOIN Canal c ON d.id_canal = c.id
-	  JOIN Usuario u ON c.id_streamer = u.id
-	WHERE (id_escolhido is null or id_escolhido = d.id_canal)
-	  AND u.data_exclusao IS NULL
-	ORDER BY total_doacao DESC;
-
+    SELECT
+      c.nome,
+      d.qtd_doacoes,
+      d.total_doacao
+    FROM
+      vw_faturamento_doacao as d
+      JOIN Canal c ON d.id_canal = c.id
+      JOIN Usuario u ON c.id_streamer = u.id
+    WHERE u.data_exclusao IS NULL
+    ORDER BY total_doacao DESC;
 $$ LANGUAGE sql;
 
-CREATE OR REPLACE FUNCTION DOACOESCANAL(nome_escolhido text)
+
+
+-- 2. Versão para buscar por ID (recebe INT)
+CREATE OR REPLACE FUNCTION DOACOESCANAL(p_id_canal int)
 RETURNS TABLE (
-  id_canal int,
   nome_canal varchar(255),
   qtd_doacoes int,
   total_doacao float
 )
 AS $$
-	SELECT
-	  d.id_canal,
-	  c.nome,
-	  d.qtd_doacoes,
-	  d.total_doacao
-	FROM vw_faturamento_doacao AS d
-	JOIN canal c ON d.id_canal = c.id
-	JOIN usuario u ON c.id_streamer = u.id
-	WHERE (nome_escolhido IS NULL
-	       OR unaccent(c.nome) ILIKE unaccent('%' || nome_escolhido || '%'))
-	  AND u.data_exclusao IS NULL
-	ORDER BY total_doacao DESC;
+    SELECT
+      c.nome,
+      d.qtd_doacoes,
+      d.total_doacao
+    FROM
+      vw_faturamento_doacao as d
+      JOIN Canal c ON d.id_canal = c.id
+      JOIN Usuario u ON c.id_streamer = u.id
+    WHERE d.id_canal = p_id_canal
+      AND u.data_exclusao IS NULL
+    ORDER BY total_doacao DESC;
 $$ LANGUAGE sql;
+
+
+
+-- 3. Versão para buscar por NOME (recebe VARCHAR)
+CREATE OR REPLACE FUNCTION DOACOESCANAL(p_nome_canal varchar)
+RETURNS TABLE (
+  nome_canal varchar(255),
+  qtd_doacoes int,
+  total_doacao float
+)
+AS $$
+    SELECT
+      c.nome,
+      d.qtd_doacoes,
+      d.total_doacao
+    FROM
+      vw_faturamento_doacao as d
+      JOIN Canal c ON d.id_canal = c.id
+      JOIN Usuario u ON c.id_streamer = u.id
+    WHERE c.nome ILIKE p_nome_canal -- Busca Flexível (Ex: 'canal do joao')
+      AND u.data_exclusao IS NULL
+    ORDER BY total_doacao DESC;
+$$ LANGUAGE sql;
+
+
 
 /* 4. Listar a soma das doações geradas pelos comentários que foram lidos por vídeo. */
 
-CREATE OR REPLACE FUNCTION DOACOESCOMENTARIOSLIDOS(id_escolhido int DEFAULT NULL)
+
+
+-- 1. Versão para buscar TUDO (sem parâmetros)
+CREATE OR REPLACE FUNCTION DOACOESCOMENTARIOSLIDOS()
 RETURNS TABLE (
-  id_canal int,
   titulo_video varchar(255),
   qtd_doacoes_lidas int,
   total_doacao float
 )
 AS $$
-	SELECT
-	  v.id_canal,
-	  v.titulo,
-	  COUNT(*) AS qtd_doacoes_lidas,
-	  SUM(d.valor) AS total_doacao
-	FROM
-	  doacao AS d
-	INNER JOIN comentario AS com
-	  ON d.id_video = com.id_video AND d.num_seq = com.num_seq
-	INNER JOIN video AS v ON com.id_video = v.id
-	INNER JOIN usuario AS u_donator ON d.id_usuario = u_donator.id
-	INNER JOIN canal AS c ON v.id_canal = c.id
-	INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
-	WHERE com.coment_on = true 
-	  AND d.status_pagamento = 'CONCLUIDO'
-	  AND (id_escolhido is null or id_escolhido = com.id_video)
-	  AND u_donator.data_exclusao IS NULL
-	  AND u_streamer.data_exclusao IS NULL
-	GROUP BY v.id, v.id_canal, v.titulo
-	ORDER BY total_doacao DESC;
-
+    SELECT
+      v.titulo,
+      COUNT(*) AS qtd_doacoes_lidas,
+      SUM(d.valor) AS total_doacao
+    FROM
+      doacao AS d
+    INNER JOIN comentario AS com
+      ON d.id_video = com.id_video AND d.num_seq = com.num_seq
+    INNER JOIN video AS v ON com.id_video = v.id
+    INNER JOIN usuario AS u_donator ON d.id_usuario = u_donator.id
+    INNER JOIN canal AS c ON v.id_canal = c.id
+    INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+    WHERE com.coment_on = true 
+      AND d.status_pagamento = 'CONCLUIDO'
+      AND u_donator.data_exclusao IS NULL
+      AND u_streamer.data_exclusao IS NULL
+    GROUP BY v.id, v.id_canal, v.titulo
+    ORDER BY total_doacao DESC;
 $$ LANGUAGE sql;
 
 
 
-CREATE OR REPLACE FUNCTION DOACOESCOMENTARIOSLIDOS(titulo_escolhido text)
+-- 2. Versão para buscar por ID (recebe INT)
+CREATE OR REPLACE FUNCTION DOACOESCOMENTARIOSLIDOS(p_id_video int)
 RETURNS TABLE (
-  id_canal int,
   titulo_video varchar(255),
   qtd_doacoes_lidas int,
   total_doacao float
 )
 AS $$
-	SELECT
-	  v.id_canal,
-	  v.titulo,
-	  COUNT(*) AS qtd_doacoes_lidas,
-	  SUM(d.valor) AS total_doacao
-	FROM doacao AS d
-	INNER JOIN comentario AS com
-	  ON d.id_video = com.id_video AND d.num_seq = com.num_seq
-	INNER JOIN video AS v ON com.id_video = v.id
-	INNER JOIN usuario AS u_donator ON d.id_usuario = u_donator.id
-	INNER JOIN canal AS c ON v.id_canal = c.id
-	INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
-	WHERE com.coment_on = TRUE
-	  AND d.status_pagamento = 'CONCLUIDO'
-	  AND (titulo_escolhido IS NULL
-	       OR unaccent(v.titulo) ILIKE unaccent('%' || titulo_escolhido || '%'))
-	  AND u_donator.data_exclusao IS NULL
-	  AND u_streamer.data_exclusao IS NULL
-	GROUP BY v.id, v.id_canal, v.titulo
-	ORDER BY total_doacao DESC;
+    SELECT
+      v.titulo,
+      COUNT(*) AS qtd_doacoes_lidas,
+      SUM(d.valor) AS total_doacao
+    FROM
+      doacao AS d
+    INNER JOIN comentario AS com
+      ON d.id_video = com.id_video AND d.num_seq = com.num_seq
+    INNER JOIN video AS v ON com.id_video = v.id
+    INNER JOIN usuario AS u_donator ON d.id_usuario = u_donator.id
+    INNER JOIN canal AS c ON v.id_canal = c.id
+    INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+    WHERE v.id = p_id_video -- Filtro direto no ID do vídeo
+      AND com.coment_on = true 
+      AND d.status_pagamento = 'CONCLUIDO'
+      AND u_donator.data_exclusao IS NULL
+      AND u_streamer.data_exclusao IS NULL
+    GROUP BY v.id, v.id_canal, v.titulo
+    ORDER BY total_doacao DESC;
 $$ LANGUAGE sql;
+
+
+
+-- 3. Versão para buscar por NOME (recebe VARCHAR)
+CREATE OR REPLACE FUNCTION DOACOESCOMENTARIOSLIDOS(p_titulo_video varchar)
+RETURNS TABLE (
+  titulo_video varchar(255),
+  qtd_doacoes_lidas int,
+  total_doacao float
+)
+AS $$
+    SELECT
+      v.titulo,
+      COUNT(*) AS qtd_doacoes_lidas,
+      SUM(d.valor) AS total_doacao
+    FROM
+      doacao AS d
+    INNER JOIN comentario AS com
+      ON d.id_video = com.id_video AND d.num_seq = com.num_seq
+    INNER JOIN video AS v ON com.id_video = v.id
+    INNER JOIN usuario AS u_donator ON d.id_usuario = u_donator.id
+    INNER JOIN canal AS c ON v.id_canal = c.id
+    INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+    WHERE v.titulo ILIKE p_titulo_video -- Busca por título (Ex: 'Gameplay%')
+      AND com.coment_on = true 
+      AND d.status_pagamento = 'CONCLUIDO'
+      AND u_donator.data_exclusao IS NULL
+      AND u_streamer.data_exclusao IS NULL
+    GROUP BY v.id, v.id_canal, v.titulo
+    ORDER BY total_doacao DESC;
+$$ LANGUAGE sql;
+
+
 
 /* 5. Listar e ordenar os k canais que mais recebem patrocínio e os valores recebidos. */
 
