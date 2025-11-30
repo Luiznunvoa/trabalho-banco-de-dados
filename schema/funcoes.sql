@@ -21,7 +21,8 @@ AS $$
 	FROM empresa e
 		JOIN patrocinio p ON p.nro_empresa = e.nro
 		JOIN canal c ON p.id_canal = c.id
-	WHERE id_emp is null or id_emp = e.nro
+		JOIN usuario u ON c.id_streamer = u.id
+	WHERE (id_emp is null or id_emp = e.nro) and u.data_exclusao is null
 	ORDER BY c.nome ASC;
 
 $$ LANGUAGE sql;
