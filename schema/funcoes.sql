@@ -74,6 +74,30 @@ AS $$
 
 $$ LANGUAGE sql;
 
+
+CREATE OR REPLACE FUNCTION GASTOMEMBRESIA(nick_user text)
+RETURNS TABLE (
+  nick varchar(100),
+  qnt_canais_membro int,
+  valor_gasto_mes float
+)
+AS $$
+	SELECT
+	    u.nick AS nome,
+	    COUNT(nc.id_canal) AS qnt_canais_membro,
+	    SUM(nc.valor) AS valor_gasto_mes
+	FROM usuario AS u
+	INNER JOIN inscricao AS i ON u.id = i.id_membro
+	INNER JOIN nivelcanal AS nc ON i.id_nivel = nc.id
+	INNER JOIN canal AS c ON nc.id_canal = c.id
+	INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+	WHERE (nick_user IS NULL OR unaccent(u.nick) ILIKE unaccent('%' || nick_user || '%'))
+	  AND u.data_exclusao IS NULL
+	  AND u_streamer.data_exclusao IS NULL
+	GROUP BY u.nick
+	ORDER BY valor_gasto_mes DESC, nome ASC;
+$$ LANGUAGE sql;
+
 /* 3. Listar e ordenar os canais que já receberam doações e a soma dos valores recebidos em doação. */
 
 CREATE OR REPLACE FUNCTION DOACOESCANAL(id_escolhido int DEFAULT NULL)
@@ -99,6 +123,27 @@ AS $$
 
 $$ LANGUAGE sql;
 
+CREATE OR REPLACE FUNCTION DOACOESCANAL(nome_escolhido text)
+RETURNS TABLE (
+  id_canal int,
+  nome_canal varchar(255),
+  qtd_doacoes int,
+  total_doacao float
+)
+AS $$
+	SELECT
+	  d.id_canal,
+	  c.nome,
+	  d.qtd_doacoes,
+	  d.total_doacao
+	FROM vw_faturamento_doacao AS d
+	JOIN canal c ON d.id_canal = c.id
+	JOIN usuario u ON c.id_streamer = u.id
+	WHERE (nome_escolhido IS NULL
+	       OR unaccent(c.nome) ILIKE unaccent('%' || nome_escolhido || '%'))
+	  AND u.data_exclusao IS NULL
+	ORDER BY total_doacao DESC;
+$$ LANGUAGE sql;
 
 /* 4. Listar a soma das doações geradas pelos comentários que foram lidos por vídeo. */
 
@@ -133,6 +178,37 @@ AS $$
 
 $$ LANGUAGE sql;
 
+
+
+CREATE OR REPLACE FUNCTION DOACOESCOMENTARIOSLIDOS(titulo_escolhido text)
+RETURNS TABLE (
+  id_canal int,
+  titulo_video varchar(255),
+  qtd_doacoes_lidas int,
+  total_doacao float
+)
+AS $$
+	SELECT
+	  v.id_canal,
+	  v.titulo,
+	  COUNT(*) AS qtd_doacoes_lidas,
+	  SUM(d.valor) AS total_doacao
+	FROM doacao AS d
+	INNER JOIN comentario AS com
+	  ON d.id_video = com.id_video AND d.num_seq = com.num_seq
+	INNER JOIN video AS v ON com.id_video = v.id
+	INNER JOIN usuario AS u_donator ON d.id_usuario = u_donator.id
+	INNER JOIN canal AS c ON v.id_canal = c.id
+	INNER JOIN usuario AS u_streamer ON c.id_streamer = u_streamer.id
+	WHERE com.coment_on = TRUE
+	  AND d.status_pagamento = 'CONCLUIDO'
+	  AND (titulo_escolhido IS NULL
+	       OR unaccent(v.titulo) ILIKE unaccent('%' || titulo_escolhido || '%'))
+	  AND u_donator.data_exclusao IS NULL
+	  AND u_streamer.data_exclusao IS NULL
+	GROUP BY v.id, v.id_canal, v.titulo
+	ORDER BY total_doacao DESC;
+$$ LANGUAGE sql;
 
 /* 5. Listar e ordenar os k canais que mais recebem patrocínio e os valores recebidos. */
 
