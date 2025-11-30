@@ -1,5 +1,13 @@
 SET SEARCH_PATH TO core;
 
+-- VIEW: vw_faturamento_doacao
+-- JUSTIFICATIVA:
+-- Esta view agrega o faturamento proveniente de doações por canal.
+-- Facilita consultas sobre receita de doações sem necessidade de múltiplos JOINs
+-- repetitivos. Considera apenas doações com pagamento concluído e filtra usuários
+-- excluídos (tanto doadores quanto streamers), garantindo integridade dos dados
+-- de faturamento ativo.
+-- ==============================================================================
 CREATE OR REPLACE VIEW vw_faturamento_doacao AS
 SELECT
   v.id_canal,
@@ -19,6 +27,12 @@ GROUP BY
   v.id_canal;
 
 
+-- VIEW: vw_faturamento_patrocinio
+-- JUSTIFICATIVA:
+-- Esta view consolida os dados de patrocínios por canal, agregando quantidade
+-- e valor total dos patrocínios. Simplifica análises de receita corporativa e
+-- permite identificar rapidamente os canais com maior apoio de empresas.
+-- Filtra streamers excluídos para manter apenas dados relevantes e ativos.
 CREATE OR REPLACE VIEW vw_faturamento_patrocinio AS
 SELECT
   p.id_canal,
@@ -34,6 +48,13 @@ GROUP BY
   p.id_canal;
 
 
+-- VIEW: vw_faturamento_inscricao
+-- JUSTIFICATIVA:
+-- Esta view agrega o faturamento recorrente proveniente de inscrições pagas
+-- (memberships) por canal. Como as inscrições podem ter diferentes níveis com
+-- valores distintos, a view soma os valores apropriados por nível. Essencial
+-- para análise de receita recorrente e previsibilidade financeira dos canais.
+-- Exclui membros e streamers inativos para refletir apenas assinaturas ativas.
 CREATE OR REPLACE VIEW vw_faturamento_inscricao AS
 SELECT
   nc.id_canal,
@@ -51,11 +72,23 @@ GROUP BY
   nc.id_canal;
 
 
--- o intuito principal da aplicação é a visualização do faturamento dos canais e o foco 
--- das consultas a serem respondidas
--- portanto, decidimos criar  uma view que abrange todas formas de faturamento de um canal
-
--- achei melhor trabalhar com blocos separados para cada fonte de faturamento para evitar erros
+-- MATERIALIZED VIEW: vw_faturamento_total
+-- JUSTIFICATIVA:
+-- Esta é a view principal da aplicação, consolidando TODAS as fontes de receita
+-- de um canal (doações, patrocínios e inscrições) em uma única estrutura.
+-- 
+-- MOTIVOS PARA SER MATERIALIZADA:
+-- 1. Performance: Evita recalcular JOINs complexos e agregações a cada consulta
+-- 2. Consultas frequentes: Dashboard e relatórios acessam estes dados repetidamente
+-- 3. Dados relativamente estáveis: Faturamento não muda a cada segundo
+-- 4. Refresh agendado: Atualização automática a cada 5 minutos via pg_cron
+--    balanceia atualidade dos dados com performance
+-- 
+-- DESIGN:
+-- - LEFT JOINs garantem que canais apareçam mesmo sem alguma fonte de receita
+-- - COALESCE trata valores NULL como 0 para cálculos corretos
+-- - Filtra apenas streamers ativos (data_exclusao IS NULL)
+-- - Estrutura modular: usa views base facilitando manutenção
 CREATE MATERIALIZED VIEW IF NOT EXISTS vw_faturamento_total AS
 SELECT
   c.id AS id_canal,
@@ -90,6 +123,18 @@ WHERE
   u.data_exclusao IS NULL
 WITH DATA;
 
+-- AGENDAMENTO: Refresh Automático da Materialized View
+-- JUSTIFICATIVA:
+-- Agenda atualização automática da view materializada a cada 5 minutos usando
+-- pg_cron. Este intervalo balanceia:
+-- - Atualidade dos dados: Informações razoavelmente recentes para dashboards
+-- - Performance: Evita sobrecarga de refresh muito frequente
+-- - CONCURRENTLY: Permite consultas durante o refresh, sem bloquear leituras
+-- 
+-- REQUISITOS:
+-- - Extensão pg_cron deve estar instalada e configurada
+-- - Para REFRESH CONCURRENTLY funcionar, é necessário criar índice único
+--   na view materializada (recomendado: CREATE UNIQUE INDEX ON vw_faturamento_total(id_canal))
 -- O formato é padrão CRON: minuto, hora, dia, mes, dia_semana
 SELECT
   cron.schedule(
