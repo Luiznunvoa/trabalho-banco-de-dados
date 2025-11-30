@@ -24,6 +24,26 @@ AS $$
 $$ LANGUAGE sql;
 
 
+CREATE OR REPLACE FUNCTION CANAISPATROCINADOSEMPRESA(nome_empresa varchar DEFAULT NULL)
+RETURNS TABLE (
+  nome_canal varchar(255),
+  valor_patrocinio float,
+  nome_empresa varchar(255)
+)
+AS $$
+    SELECT
+      c.nome nome_canal,
+      p.valor valor_patrocinio,
+      e.nome nome_empresa
+    FROM empresa e
+        JOIN patrocinio p ON p.nro_empresa = e.nro
+        JOIN canal c ON p.id_canal = c.id
+        JOIN usuario u ON c.id_streamer = u.id -- Correção de soft delete (baseada na nossa conversa)
+    WHERE (nome_empresa is null or nome_empresa = e.nome) and u.data_exclusao is null
+    ORDER BY c.nome ASC;
+
+$$ LANGUAGE sql;
+
 /* 2. Descobrir de quantos canais cada usuário é membro e a soma do valor desembolsado por
 usuário por mês. */
 
