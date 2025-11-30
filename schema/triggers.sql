@@ -1,12 +1,24 @@
 SET SEARCH_PATH TO core;
 
-/*
-  SCHEDULE PARA ATUALIZAR VIEW MATERIALIZADA A CADA 6 MIN
-*/
-
+-- ÍNDICE ÚNICO: idx_vw_fat_total_id_canal
+-- JUSTIFICATIVA:
+-- Índice único necessário para permitir REFRESH MATERIALIZED VIEW CONCURRENTLY.
+-- Sem este índice, o refresh travaria a tabela durante a atualização, impedindo
+-- consultas simultâneas. O índice em id_canal é lógico pois:
+-- 1. id_canal é chave primária de Canal e única na view
+-- 2. Maioria das consultas filtra ou agrupa por canal
+-- 3. Garante integridade: cada canal aparece apenas uma vez na view
 CREATE UNIQUE INDEX idx_vw_fat_total_id_canal
 ON core.vw_faturamento_total (id_canal);
 
+-- AGENDAMENTO CRON: Refresh da Materialized View
+-- JUSTIFICATIVA:
+-- Atualiza automaticamente vw_faturamento_total a cada 5 minutos.
+-- CONCURRENTLY permite que consultas continuem durante o refresh sem bloqueio.
+-- Intervalo de 5 minutos balanceia:
+-- - Atualidade: Dados relativamente recentes para dashboards
+-- - Performance: Evita sobrecarga de refresh muito frequente em tabelas grandes
+-- - Carga do sistema: Não impacta operações transacionais (INSERTs, UPDATEs)
 -- O formato é padrão CRON: minuto, hora, dia, mes, dia_semana
 SELECT cron.schedule(
   'refresh_faturamento_5min', -- Nome da tarefa (opcional)
@@ -21,11 +33,25 @@ SELECT cron.schedule(
 -- FOR EACH ROW
 -- EXECUTE FUNCTION fn_bloquear_delete_usuario();
 
-/*
-  TRIGGER PAR GARANTIR SOFT DELETE DE USUÁRIO
-  Luiz: Eu escolhi essa pq parece fazer mais sentido
-*/
-
+-- TRIGGER: trg_usuario_soft_delete
+-- OBJETIVO:
+-- Implementa soft delete automático na tabela Usuario, preservando dados
+-- históricos e mantendo integridade referencial sem cascatas destrutivas.
+--
+-- JUSTIFICATIVA:
+-- 1. CONFORMIDADE LEGAL: Atende requisitos de auditoria e histórico de usuários
+-- 2. INTEGRIDADE DE DADOS: Preserva referências em Doacao, Comentario, Inscricao
+--    sem necessidade de ON DELETE CASCADE
+-- 3. RECUPERAÇÃO: Permite restaurar contas excluídas acidentalmente
+-- 4. ANÁLISE: Mantém dados históricos para relatórios e analytics
+--
+-- FUNCIONAMENTO:
+-- Intercepta comandos DELETE e os converte em UPDATE, marcando data_exclusao.
+-- Retorna NULL para cancelar o DELETE original. Transparente para aplicação.
+--
+-- IMPACTO:
+-- - Views e consultas devem filtrar por data_exclusao IS NULL
+-- - Comandos DELETE na tabela Usuario nunca removem fisicamente os dados
 --3. Trigger que substitui Delete por Update
 CREATE OR REPLACE FUNCTION fn_soft_delete_automatico()
 RETURNS TRIGGER AS $$
@@ -48,9 +74,27 @@ BEFORE DELETE ON Usuario
 FOR EACH ROW
 EXECUTE FUNCTION fn_soft_delete_automatico();
 
-/*
-  TRIGGER PAR GARANTIR SEQUENCIALIDADE DO NÚMERO SEQUENCIAL DE COMENTÁRIO
-*/
+-- TRIGGER: trg_auto_seq_comentario
+-- OBJETIVO:
+-- Gera automaticamente o número sequencial (num_seq) de comentários por usuário
+-- em cada vídeo, garantindo sequência única e sem gaps.
+--
+-- JUSTIFICATIVA:
+-- 1. MODELO DE DADOS: Comentario tem chave composta (id_video, id_usuario, num_seq)
+--    onde num_seq é sequencial POR USUÁRIO em cada vídeo
+-- 2. EXPERIÊNCIA DO USUÁRIO: Permite rastrear histórico de comentários de um
+--    usuário em um vídeo específico (1º, 2º, 3º comentário, etc.)
+-- 3. ATOMICIDADE: Garante que não haja conflitos de numeração em inserções
+--    concorrentes usando FOR UPDATE lock
+--
+-- FUNCIONAMENTO:
+-- - LOCK: Trava apenas a linha do usuário específico (não bloqueia outros usuários)
+-- - CÁLCULO: Busca MAX(num_seq) do usuário naquele vídeo e incrementa
+-- - Se usuário nunca comentou no vídeo: COALESCE retorna 0, primeiro será 1
+--
+-- PERFORMANCE:
+-- Lock granular (por usuário) permite alta concorrência. Múltiplos usuários
+-- podem comentar no mesmo vídeo simultaneamente sem contenção.
 CREATE OR REPLACE FUNCTION fn_calcular_seq_comentario_usuario()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -77,9 +121,26 @@ BEFORE INSERT ON Comentario
 FOR EACH ROW
 EXECUTE FUNCTION fn_calcular_seq_comentario_usuario();
 
-/*
-  PROCEDURES PARA ATUALIZAÇÃO DE CONTADORES
-*/
+-- PROCEDURE: proc_atualizar_qtd_user
+-- OBJETIVO:
+-- Atualiza o contador desnormalizado qtd_users na tabela Plataforma, refletindo
+-- o número real de usuários ativos em cada plataforma.
+--
+-- JUSTIFICATIVA:
+-- 1. PERFORMANCE: Evita COUNT(*) com JOINs em cada consulta de estatísticas
+-- 2. DESNORMALIZAÇÃO CONTROLADA: Mantém dados agregados para dashboards
+-- 3. CONSISTÊNCIA EVENTUAL: Execução agendada aceita pequena defasagem (6h)
+--    em troca de não impactar transações em tempo real
+-- 4. ANÁLISE DE NEGÓCIO: Facilita relatórios de popularidade de plataformas
+--
+-- FREQUÊNCIA:
+-- A cada 6 horas (0 */6 * * *) - adequado para dados que mudam gradualmente
+-- e não exigem precisão em tempo real.
+--
+-- CONSIDERAÇÕES:
+-- - Filtra usuários excluídos (data_exclusao IS NULL)
+-- - Atualiza todas as plataformas de uma vez
+-- - Uso de RAISE NOTICE para logging de execução
 CREATE OR REPLACE PROCEDURE proc_atualizar_qtd_user()
 AS $$
 BEGIN
@@ -96,17 +157,37 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+-- AGENDAMENTO CRON: Atualização de qtd_users por plataforma
+-- Executa a cada 6 horas (às 00:00, 06:00, 12:00, 18:00)
+-- Frequência adequada para dados que variam lentamente e não críticos
 SELECT cron.schedule(
   'proc_atualizar_qtd_user',
   '0 */6 * * *',
   'CALL core.proc_atualizar_qtd_user()'
 );
 
-
-/*
-  PROCEDURE PARA ATUALIZAÇÃO DE CONTADOR DE VISUALIZAÇÕES
-*/
+-- PROCEDURE: proc_atualizar_qtd_visu
+-- OBJETIVO:
+-- Atualiza o contador desnormalizado qtd_visualizacoes na tabela Canal,
+-- somando as visualizações de todos os vídeos do canal.
+--
+-- JUSTIFICATIVA:
+-- 1. PERFORMANCE CRÍTICA: qtd_visualizacoes é métrica chave para rankings e
+--    recomendações - calcular em tempo real seria muito custoso
+-- 2. DASHBOARDS: Estatísticas de canais são consultadas frequentemente
+-- 3. PRECISÃO ADEQUADA: Atualização horária é suficiente para análises,
+--    já que visualizações acumulam gradualmente
+-- 4. ESCALABILIDADE: Desacopla agregação de consultas, permitindo milhões
+--    de visualizações sem impactar leituras
+--
+-- FREQUÊNCIA:
+-- A cada 1 hora (0 */1 * * *) - mais frequente que qtd_users pois visualizações
+-- são métricas mais dinâmicas e importantes para o negócio.
+--
+-- CONSIDERAÇÕES:
+-- - Usa COALESCE para canais sem vídeos (retorna 0)
+-- - Considera visu_total de cada vídeo (que pode ser mantida por trigger separado)
+-- - Atualiza todos os canais simultaneamente
 
 CREATE OR REPLACE PROCEDURE proc_atualizar_qtd_visu()
 AS $$
@@ -124,12 +205,42 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+-- AGENDAMENTO CRON: Atualização de visualizações por canal
+-- Executa a cada 1 hora (início de cada hora: 00:00, 01:00, 02:00, etc.)
+-- Frequência maior que qtd_users pois visualizações são métrica mais dinâmica
 SELECT cron.schedule(
   'proc_atualizar_qtd_visu',
   '0 */1 * * *',
   'CALL core.proc_atualizar_qtd_visu()'
 );
 
+-- TRIGGER: verificar_metodo_pagamento_unico (múltiplas tabelas)
+-- OBJETIVO:
+-- Garante que cada doação tenha APENAS UM método de pagamento associado,
+-- implementando constraint de integridade sobre especialização de tabelas.
+--
+-- JUSTIFICATIVA:
+-- 1. MODELO DE DADOS: Doacao é generalização; Bitcoin, CartaoCredito, Paypal,
+--    MecPlat são especializações mutuamente exclusivas (cada doação usa só um)
+-- 2. INTEGRIDADE DE NEGÓCIO: Impossível pagar uma doação com múltiplos métodos
+--    (não é carrinho de compras, é transação única)
+-- 3. CONSTRAINT COMPLEXA: SQL não tem suporte nativo para "OU exclusivo" entre
+--    tabelas relacionadas - trigger é a solução adequada
+-- 4. PREVENÇÃO DE BUGS: Evita inconsistências caso aplicação tente inserir
+--    múltiplos métodos por erro
+--
+-- FUNCIONAMENTO:
+-- - BEFORE INSERT em cada tabela de método de pagamento
+-- - Verifica se já existe registro nas outras 3 tabelas para mesma doação
+-- - TG_TABLE_NAME evita verificação recursiva na própria tabela
+-- - RAISE EXCEPTION com mensagem clara indicando qual método já existe
+--
+-- TABELAS PROTEGIDAS:
+-- - Bitcoin, CartaoCredito, Paypal, MecPlat (todas com mesmo trigger)
+--
+-- PERFORMANCE:
+-- Impacto mínimo - 3 EXISTS simples em índices de chaves primárias.
+-- Essencial para manter consistência do modelo.
 -- Função que verifica se já existe método de pagamento para a doação
 CREATE OR REPLACE FUNCTION verificar_metodo_pagamento_unico()
 RETURNS TRIGGER AS $$
@@ -186,6 +297,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Aplicação dos Triggers de Método de Pagamento Único
+-- Cada trigger protege sua respectiva tabela, garantindo exclusividade mútua
+
 -- Trigger para Bitcoin
 CREATE TRIGGER trigger_verificar_metodo_pagamento_bitcoin
 BEFORE INSERT ON Bitcoin
@@ -204,7 +318,7 @@ BEFORE INSERT ON Paypal
 FOR EACH ROW
 EXECUTE FUNCTION verificar_metodo_pagamento_unico();
 
--- Trigger para MecPlat
+-- Trigger para MecPlat (Mecanismo da Plataforma)
 CREATE TRIGGER trigger_verificar_metodo_pagamento_mecplat
 BEFORE INSERT ON MecPlat
 FOR EACH ROW
