@@ -1,5 +1,5 @@
-CREATE SCHEMA IF NOT EXISTS core;
-SET SEARCH_PATH TO core;
+CREATE SCHEMA IF NOT EXISTS core2;
+SET SEARCH_PATH TO core2;
 
 -- As extensões btree_gist e pg_cron são instaladas em 00-extensions.sql
 
@@ -7,20 +7,13 @@ CREATE TYPE TIPO_CANAL AS ENUM ('privado', 'publico', 'misto');
 
 CREATE TYPE STATUSPAGAMENTO AS ENUM ('PENDENTE', 'CONCLUIDO', 'FALHOU');
 
--- ID Artificial 'nro': Criado pois o nome da empresa (VARCHAR) não é adequado como chave primária
--- devido a possibilidade de mudanças (rebranding), homônimos, e ineficiência em JOINs.
--- INT é mais eficiente em indexação e relacionamentos (FK em Plataforma, Patrocinio, EmpresaPais).
--- Capacidade: ~2.1 bilhões de empresas, suficiente para cenário mundial.
 CREATE TABLE Empresa ( -- OK
   nro INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nome VARCHAR(255) NOT NULL,
   nome_fantasia VARCHAR(255)
 );
 
--- ID Artificial 'id': Criado para simplificar relacionamentos, pois VARCHAR(100) é ineficiente
--- como FK em Pais. INT ocupa 4 bytes vs até 100 bytes do VARCHAR, melhorando performance de JOINs.
--- Permite múltiplas moedas com nomes longos (ex: "Dólar Americano", "Real Brasileiro") sem
--- overhead em chaves estrangeiras. Evita problemas com encoding e caracteres especiais.
+-- Só alteramos nome de moeda para id para facilitar a visualização
 CREATE TABLE Conversao (
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   moeda VARCHAR(100) NOT NULL,
@@ -36,10 +29,6 @@ CREATE TABLE Pais (
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- ID Artificial 'nro': Criado pois nome da plataforma (VARCHAR) pode mudar ou ser duplicado
--- em diferentes contextos. INT simplifica relacionamentos em Canal e PlataformaUsuario.
--- Melhora performance de indexação e JOINs. Evita problemas com renomeações da plataforma
--- (ex: Twitter -> X), mantendo integridade referencial sem cascata de UPDATEs.
 CREATE TABLE Plataforma (
   nro INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nome VARCHAR(255) NOT NULL,
@@ -53,12 +42,11 @@ CREATE TABLE Plataforma (
   ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- Criamos ID artificial pois nick é varchar, o que dificulta a integração com outras tabelas e
--- é menos eficiente de trabalhar
+-- ID Artificial 'id': Criado pois 'nick' (VARCHAR) é mutável e dificulta integração com outras 
+-- tabelas. INT é mais eficiente para JOINs e indexação, ocupando apenas 4 bytes vs ~100 do VARCHAR.
 -- Uso de data_exclusao para conseguir manter dados mesmo após o delete do usuario
 -- isso possibilita uma análise de negócios mais profunda e
 -- a possibilidade de reativar um usuário
------->>>>> essa possibilidade gera um pequeno erro na clausula unique (verificar)
 CREATE TABLE Usuario ( -- OK
   id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nick VARCHAR(100) NOT NULL,
@@ -69,7 +57,10 @@ CREATE TABLE Usuario ( -- OK
   end_postal VARCHAR(50),
   data_exclusao TIMESTAMP DEFAULT NULL,
 
+  -- UNIQUE (nick): Garante unicidade do nickname na plataforma, evitando confusão entre usuários
   UNIQUE (nick),
+  -- UNIQUE (email): Garante que cada email só pode estar associado a uma conta, 
+  -- prevenindo duplicação de contas e facilitando recuperação de senha
   UNIQUE (email),
 
   FOREIGN KEY (pais_residencia) REFERENCES Pais (ddi)
@@ -82,6 +73,8 @@ CREATE TABLE PlataformaUsuario (
   nro_usuario INTEGER,
 
   PRIMARY KEY (nro_plataforma, id_usuario),
+  -- UNIQUE (nro_plataforma, nro_usuario): Garante que o número de identificação do usuário
+  -- seja único dentro de cada plataforma, evitando conflitos de identificação
   UNIQUE (nro_plataforma, nro_usuario),
 
   FOREIGN KEY (nro_plataforma) REFERENCES Plataforma (nro)
@@ -96,6 +89,8 @@ CREATE TABLE StreamerPais (
   nro_passaporte VARCHAR(50),
 
   PRIMARY KEY (id_usuario, ddi_pais),
+  -- UNIQUE (nro_passaporte): Garante unicidade global do passaporte, pois um passaporte
+  -- não pode pertencer a múltiplos usuários ou países simultaneamente
   UNIQUE (nro_passaporte),
 
   FOREIGN KEY (id_usuario) REFERENCES Usuario (id)
@@ -110,6 +105,8 @@ CREATE TABLE EmpresaPais (
   id_nacional VARCHAR(100),
 
   PRIMARY KEY (nro_empresa, ddi_pais),
+  -- UNIQUE (ddi_pais, id_nacional): Garante que cada ID nacional (CNPJ, EIN, etc.) seja
+  -- único dentro de um país, pois cada país tem seu próprio sistema de identificação empresarial
   UNIQUE (ddi_pais, id_nacional),
 
   FOREIGN KEY (nro_empresa) REFERENCES Empresa (nro)
@@ -133,6 +130,9 @@ CREATE TABLE Canal (
   data_criacao DATE NOT NULL,
   descricao VARCHAR(255),
 
+  -- UNIQUE (nome, nro_plataforma): Garante que o nome do canal seja único dentro de cada
+  -- plataforma, evitando confusão entre canais e permitindo que o mesmo nome exista em
+  -- plataformas diferentes (ex: "GamersUnited" no YouTube e Twitch)
   UNIQUE (nome, nro_plataforma),
 
   FOREIGN KEY (nro_plataforma) REFERENCES Plataforma (nro)
@@ -166,6 +166,8 @@ CREATE TABLE NivelCanal (
   valor DECIMAL(5, 2),
   gif VARCHAR(512),
 
+  -- UNIQUE (id_canal, nivel): Garante que não existam dois níveis com o mesmo nome dentro
+  -- de um canal, evitando confusão para os membros (ex: não pode haver dois níveis "Gold")
   UNIQUE (id_canal, nivel),
 
   FOREIGN KEY (id_canal) REFERENCES Canal (id)
@@ -184,11 +186,11 @@ CREATE TABLE Inscricao (
   ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Criamos ID artificial pois "titulo" é varchar e "datah" é DATE
--- que seria bastante ineficiente para trabalhar
--- Resolvemos criar um id único sendo BIGINT pois, uma chave primária composta
--- [id_canal,id_video] ocupa 8 bytes, o mesmo tamanho do BIGINT
--- porém a chave composta única é melhor de visualizar e integrar com outras tabelas
+-- ID Artificial 'id': Criado pois titulo (VARCHAR 255) e dataH (TIMESTAMP) são ineficientes como PK.
+-- Vídeo é altamente referenciado em Participa, Comentario, Doacao. Usar chave composta 
+-- (id_canal, titulo, dataH) seria ineficiente, ocupando ~263 bytes vs 8 bytes do BIGINT.
+-- BIGINT foi escolhido pois oferece capacidade para ~9 quintilhões de vídeos, suficiente
+-- considerando que YouTube tem ~800 milhões de vídeos e cresce ~500h de conteúdo/minuto.
 CREATE TABLE Video ( -- OK
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_canal INT NOT NULL,
@@ -199,6 +201,8 @@ CREATE TABLE Video ( -- OK
   visu_simult INT,
   visu_total INT,
 
+  -- UNIQUE (id_canal, titulo, dataH): Garante que um canal não possa ter dois vídeos com
+  -- o mesmo título na mesma data/hora, evitando duplicação acidental de uploads
   UNIQUE (id_canal, titulo, dataH),
 
   FOREIGN KEY (id_canal) REFERENCES Canal (id)
@@ -235,9 +239,10 @@ CREATE TABLE Comentario (
 
 -- RESTRIÇÃO DE MÉTODO DE PAGAMENTO ÚNICO:
 -- Uma doação pode ter apenas UM método de pagamento (Bitcoin, CartaoCredito, Paypal ou MecPlat).
--- Esta restrição é garantida através de EXCLUSION CONSTRAINTS que utilizam a extensão btree_gist.
--- Cada tabela de pagamento possui uma constraint que impede a existência de registros nas outras
--- tabelas para a mesma doação, garantindo que apenas um método seja usado por doação.
+-- Esta restrição é garantida através de TRIGGERS que verificam antes de cada inserção se já existe
+-- algum registro de pagamento nas outras tabelas para a mesma doação.
+-- A função verificar_metodo_pagamento_unico() é executada em cada tabela de pagamento e impede
+-- a inserção caso já exista um método de pagamento associado àquela doação.
 -- JUSTIFICATIVA: Não faz sentido uma única doação possuir dois pagamentos diferentes.
 CREATE TABLE Doacao (
   id_video BIGINT NOT NULL,
@@ -253,21 +258,12 @@ CREATE TABLE Doacao (
 );
 
 CREATE TABLE Bitcoin (
-  id_video_doacao BIGINT,
-  seq_doacao INT,
+  id_video_doacao BIGINT NOT NULL,
+  seq_doacao INT NOT NULL,
   id_usuario INT NOT NULL,
-  tx_id VARCHAR(64),
+  tx_id VARCHAR(64) NOT NULL,
 
-  PRIMARY KEY (id_video_doacao, seq_doacao, tx_id, id_usuario),
-
-  -- EXCLUSION CONSTRAINT: Garante que não existe registro em outras tabelas para a mesma doação
-  -- usando a chave composta (id_video_doacao, seq_doacao, id_usuario)
-  CONSTRAINT bitcoin_exclusao_metodo_unico
-  EXCLUDE USING gist (
-    id_video_doacao WITH =,
-    seq_doacao WITH =,
-    id_usuario WITH =
-  ),
+  PRIMARY KEY (id_video_doacao, seq_doacao, id_usuario),
 
   FOREIGN KEY (id_video_doacao, seq_doacao, id_usuario) REFERENCES Doacao (
     id_video, num_seq, id_usuario
@@ -276,22 +272,16 @@ CREATE TABLE Bitcoin (
 );
 
 CREATE TABLE CartaoCredito (
-  id_video_doacao BIGINT,
-  seq_doacao INT,
-  num VARCHAR(24),
+  id_video_doacao BIGINT NOT NULL,
+  seq_doacao INT NOT NULL,
   id_usuario INT NOT NULL,
+  num VARCHAR(24) NOT NULL,
   bandeira VARCHAR(32),
 
-  PRIMARY KEY (id_video_doacao, seq_doacao, num, id_usuario),
+  PRIMARY KEY (id_video_doacao, seq_doacao, id_usuario),
+  -- UNIQUE (num, bandeira): Garante que a combinação de número de cartão e bandeira seja
+  -- única no sistema, prevenindo fraudes e duplicação de dados de pagamento
   UNIQUE (num, bandeira),
-
-  -- EXCLUSION CONSTRAINT: Garante que não existe registro em outras tabelas para a mesma doação
-  CONSTRAINT cartao_exclusao_metodo_unico
-  EXCLUDE USING gist (
-    id_video_doacao WITH =,
-    seq_doacao WITH =,
-    id_usuario WITH =
-  ),
 
   FOREIGN KEY (id_video_doacao, seq_doacao, id_usuario) REFERENCES Doacao (
     id_video, num_seq, id_usuario
@@ -300,20 +290,12 @@ CREATE TABLE CartaoCredito (
 );
 
 CREATE TABLE Paypal (
-  id_video_doacao BIGINT,
-  seq_doacao INT,
+  id_video_doacao BIGINT NOT NULL,
+  seq_doacao INT NOT NULL,
   id_usuario INT NOT NULL,
-  id INT,
+  id INT NOT NULL,
 
-  PRIMARY KEY (id_video_doacao, seq_doacao, id, id_usuario),
-
-  -- EXCLUSION CONSTRAINT: Garante que não existe registro em outras tabelas para a mesma doação
-  CONSTRAINT paypal_exclusao_metodo_unico
-  EXCLUDE USING gist (
-    id_video_doacao WITH =,
-    seq_doacao WITH =,
-    id_usuario WITH =
-  ),
+  PRIMARY KEY (id_video_doacao, seq_doacao, id_usuario),
 
   FOREIGN KEY (id_video_doacao, seq_doacao, id_usuario) REFERENCES Doacao (
     id_video, num_seq, id_usuario
@@ -322,24 +304,15 @@ CREATE TABLE Paypal (
 );
 
 CREATE TABLE MecPlat (
-  id_video_doacao BIGINT,
-  seq_doacao INT,
+  id_video_doacao BIGINT NOT NULL,
+  seq_doacao INT NOT NULL,
   id_usuario INT NOT NULL,
-  seq INT,
+  seq INT NOT NULL,
 
-  PRIMARY KEY (id_video_doacao, seq_doacao, seq, id_usuario),
-
-  -- EXCLUSION CONSTRAINT: Garante que não existe registro em outras tabelas para a mesma doação
-  CONSTRAINT mecplat_exclusao_metodo_unico
-  EXCLUDE USING gist (
-    id_video_doacao WITH =,
-    seq_doacao WITH =,
-    id_usuario WITH =
-  ),
+  PRIMARY KEY (id_video_doacao, seq_doacao, id_usuario),
 
   FOREIGN KEY (id_video_doacao, seq_doacao, id_usuario) REFERENCES Doacao (
     id_video, num_seq, id_usuario
   )
   ON UPDATE CASCADE ON DELETE CASCADE
 );
-

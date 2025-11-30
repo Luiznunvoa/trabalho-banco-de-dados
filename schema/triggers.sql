@@ -1,7 +1,7 @@
 SET SEARCH_PATH TO core;
 
 /*
-  SCHEDULE PARA ATUALIZAR VIEW MATERIALIZADA A CADA 5 MIN
+  SCHEDULE PARA ATUALIZAR VIEW MATERIALIZADA A CADA 6 MIN
 */
 
 CREATE UNIQUE INDEX idx_vw_fat_total_id_canal
@@ -77,11 +77,6 @@ BEFORE INSERT ON Comentario
 FOR EACH ROW
 EXECUTE FUNCTION fn_calcular_seq_comentario_usuario();
 
-
-
-
-
-
 /*
   PROCEDURES PARA ATUALIZAÇÃO DE CONTADORES
 */
@@ -103,9 +98,9 @@ $$ LANGUAGE plpgsql;
 
 
 SELECT cron.schedule(
-    'proc_atualizar_qtd_user',
-    '0 */6 * * *',
-    'CALL core.proc_atualizar_qtd_user()'
+  'proc_atualizar_qtd_user',
+  '0 */6 * * *',
+  'CALL core.proc_atualizar_qtd_user()'
 );
 
 
@@ -130,7 +125,87 @@ $$ LANGUAGE plpgsql;
 
 
 SELECT cron.schedule(
-    'proc_atualizar_qtd_visu',
-    '0 */1 * * *',
-    'CALL core.proc_atualizar_qtd_visu()'
+  'proc_atualizar_qtd_visu',
+  '0 */1 * * *',
+  'CALL core.proc_atualizar_qtd_visu()'
 );
+
+-- Função que verifica se já existe método de pagamento para a doação
+CREATE OR REPLACE FUNCTION verificar_metodo_pagamento_unico()
+RETURNS TRIGGER AS $$
+DECLARE
+  metodo_existente TEXT;
+BEGIN
+  -- Verifica se já existe pagamento em Bitcoin
+  IF TG_TABLE_NAME != 'bitcoin' AND EXISTS (
+    SELECT 1 FROM Bitcoin
+    WHERE id_video_doacao = NEW.id_video_doacao
+      AND seq_doacao = NEW.seq_doacao
+      AND id_usuario = NEW.id_usuario
+  ) THEN
+    metodo_existente := 'Bitcoin';
+  END IF;
+
+  -- Verifica se já existe pagamento em CartaoCredito
+  IF TG_TABLE_NAME != 'cartaocredito' AND EXISTS (
+    SELECT 1 FROM CartaoCredito
+    WHERE id_video_doacao = NEW.id_video_doacao
+      AND seq_doacao = NEW.seq_doacao
+      AND id_usuario = NEW.id_usuario
+  ) THEN
+    metodo_existente := 'Cartão de Crédito';
+  END IF;
+
+  -- Verifica se já existe pagamento em Paypal
+  IF TG_TABLE_NAME != 'paypal' AND EXISTS (
+    SELECT 1 FROM Paypal
+    WHERE id_video_doacao = NEW.id_video_doacao
+      AND seq_doacao = NEW.seq_doacao
+      AND id_usuario = NEW.id_usuario
+  ) THEN
+    metodo_existente := 'Paypal';
+  END IF;
+
+  -- Verifica se já existe pagamento em MecPlat
+  IF TG_TABLE_NAME != 'mecplat' AND EXISTS (
+    SELECT 1 FROM MecPlat
+    WHERE id_video_doacao = NEW.id_video_doacao
+      AND seq_doacao = NEW.seq_doacao
+      AND id_usuario = NEW.id_usuario
+  ) THEN
+    metodo_existente := 'Mecanismo da Plataforma';
+  END IF;
+
+  -- Se já existe um método, lança erro
+  IF metodo_existente IS NOT NULL THEN
+    RAISE EXCEPTION 'Doação (video: %, seq: %, usuario: %) já possui método de pagamento: %',
+      NEW.id_video_doacao, NEW.seq_doacao, NEW.id_usuario, metodo_existente;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger para Bitcoin
+CREATE TRIGGER trigger_verificar_metodo_pagamento_bitcoin
+BEFORE INSERT ON Bitcoin
+FOR EACH ROW
+EXECUTE FUNCTION verificar_metodo_pagamento_unico();
+
+-- Trigger para CartaoCredito
+CREATE TRIGGER trigger_verificar_metodo_pagamento_cartao
+BEFORE INSERT ON CartaoCredito
+FOR EACH ROW
+EXECUTE FUNCTION verificar_metodo_pagamento_unico();
+
+-- Trigger para Paypal
+CREATE TRIGGER trigger_verificar_metodo_pagamento_paypal
+BEFORE INSERT ON Paypal
+FOR EACH ROW
+EXECUTE FUNCTION verificar_metodo_pagamento_unico();
+
+-- Trigger para MecPlat
+CREATE TRIGGER trigger_verificar_metodo_pagamento_mecplat
+BEFORE INSERT ON MecPlat
+FOR EACH ROW
+EXECUTE FUNCTION verificar_metodo_pagamento_unico();
