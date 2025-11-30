@@ -78,3 +78,55 @@ FOR EACH ROW
 EXECUTE FUNCTION fn_calcular_seq_comentario_usuario();
 
 
+/*
+  PROCEDURES PARA ATUALIZAÇÃO DE CONTADORES
+*/
+CREATE OR REPLACE PROCEDURE proc_atualizar_qtd_user()
+AS $$
+BEGIN
+    UPDATE Plataforma p
+    SET qtd_users = (
+        SELECT COUNT(pu.id_usuario)
+        FROM PlataformaUsuario pu
+        INNER JOIN Usuario u ON pu.id_usuario = u.id
+        WHERE pu.nro_plataforma = p.nro
+          AND u.data_exclusao IS NULL
+    );
+    
+    RAISE NOTICE 'Contador de usuário por plataforma atualizado com sucesso.';
+END;
+$$ LANGUAGE plpgsql;
+
+
+SELECT cron.schedule(
+    'proc_atualizar_qtd_user',
+    '0 */6 * * *',
+    'CALL core.proc_atualizar_qtd_user()'
+);
+
+
+/*
+  PROCEDURE PARA ATUALIZAÇÃO DE CONTADOR DE VISUALIZAÇÕES
+*/
+
+CREATE OR REPLACE PROCEDURE proc_atualizar_qtd_visu()
+AS $$
+BEGIN
+
+    UPDATE Canal c
+    SET qtd_visualizacoes = (
+        SELECT COALESCE(SUM(v.visu_total), 0)
+        FROM Video v
+        WHERE v.id_canal = c.id
+    );
+
+    RAISE NOTICE 'Contador de visualizações atualizado com sucesso.';
+END;
+$$ LANGUAGE plpgsql;
+
+
+SELECT cron.schedule(
+    'proc_atualizar_qtd_visu',
+    '0 */1 * * *',
+    'CALL core.proc_atualizar_qtd_visu()'
+);

@@ -7,9 +7,12 @@ from typing import Sequence
 
 def conn_db() -> Engine:
     try:
-        return create_engine(url ='postgresql+psycopg2://admin:123@localhost:5434/db')
+        return create_engine(
+            "postgresql+psycopg2://admin:123@localhost:5434/db",
+            connect_args={"options": "-csearch_path=core"}
+        )
     except Exception as e:
-        raise Exception ("Erro ao se conectar com o banco")
+        raise Exception("Erro ao se conectar com o banco")
 
 
 def select_db(schema : str, tabela : str, engine : Engine) -> pd.DataFrame:
